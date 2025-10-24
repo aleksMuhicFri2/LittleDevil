@@ -246,8 +246,8 @@ public abstract class Enemy {
     }
 
     public void applySeparationForce(GameWorld world) {
-        float repelStrength = 6f;
-        float desiredDistance = 15f;
+        float repelStrength = 5f;
+        float desiredDistance = 50f;
 
         float moveX = 0f, moveY = 0f;
 

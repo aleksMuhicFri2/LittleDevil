@@ -36,7 +36,7 @@ public class GameScreen implements Screen {
     private GameWorld gameWorld;
 
     private Texture darknessTexture;
-    private float darknessAlpha = 0.45f;
+    private float darknessAlpha = 0.55f;
 
     private Music backgroundMusic;
 

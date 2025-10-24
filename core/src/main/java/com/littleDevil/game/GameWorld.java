@@ -58,11 +58,11 @@ public class GameWorld {
         enemies = new ArrayList<>();
         enemies = new ArrayList<>();
         enemies.add(new Templar(250, 140, this));
-        enemies.add(new Templar(270, 140, this));
-        enemies.add(new Templar(290, 140, this));
-        enemies.add(new Templar(310, 140, this));
-        enemies.add(new Templar(330, 140, this));
-        enemies.add(new Templar(350, 140, this));
+        //enemies.add(new Templar(270, 140, this));
+        //enemies.add(new Templar(290, 140, this));
+        //enemies.add(new Templar(310, 140, this));
+        //enemies.add(new Templar(330, 140, this));
+        //enemies.add(new Templar(350, 140, this));
 
 
         // Altars
@@ -141,7 +141,6 @@ public class GameWorld {
                 ));
             }
         }
-
         // Enemy objects
         for (Enemy e : enemies) {
             renderList.add(createRenderEntity(e.getCurrentFrame(), e.x, e.y));
@@ -157,6 +156,11 @@ public class GameWorld {
         renderList.clear();
 
         renderDebug(false, batch);
+        for (Enemy e : enemies) {
+            if (e instanceof Templar templar) {
+                templar.renderShield(batch, player);
+            }
+        }
     }
 
     // Adds a CollisionObject to the objects array of the GameWorld

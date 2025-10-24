@@ -10,6 +10,11 @@ public class Light {
     public float alpha = 1f;    // intensity
     public Texture tex;          // keep reference to dispose later
 
+    // Flicker data
+    public float flickerSpeed = 0.5f + (float)Math.random() * 1.0f; // Hz
+    public float flickerPhase = (float)Math.random() * 10f;
+    public float flickerAmplitude = 0.25f + (float)Math.random() * 0.3f; // how strong the flicker is
+
     public Light(float x, float y, float width, float height, String texturePath, float alpha) {
         this.x = x;
         this.y = y;
