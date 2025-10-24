@@ -60,7 +60,7 @@ public class Player {
         spriteSheet = new Texture(spriteSheetPath);
         frames = new TextureRegion[9];
         for (int i = 0; i < 9; i++) frames[i] = new TextureRegion(spriteSheet, i * 32, 0, 32, 32);
-        currentFrame = frames[7];  // start at attack frame 7
+        currentFrame = frames[0];  // start at attack frame 7
         currentSwordFrame = null;
 
         // Load sword frames

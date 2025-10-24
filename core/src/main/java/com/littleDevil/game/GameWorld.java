@@ -98,7 +98,9 @@ public class GameWorld {
         player.update(delta, this);
 
         // update A* paths when needed = reduce timer
-        updatePathsForEnemies();
+        for(Enemy e :  enemies) {
+            e.updatePathsForEnemy(delta, player, this, PATH_UPDATE_INTERVAL);
+        }
 
         for (Enemy enemy : enemies) enemy.update(delta, player, this, gameScreen);
         for (GameCandle candle : candles) candle.update(delta);
@@ -186,83 +188,6 @@ public class GameWorld {
                 collisionGrid[y][x] = (tile == 2); // obstacle collision
             }
         }
-    }
-
-    // Updates the path for enemies or reduces time until its updated
-    public void updatePathsForEnemies() {
-        float delta = Gdx.graphics.getDeltaTime();
-
-        float playerCenterX = player.x + player.collisionOffsetX + player.collisionWidth / 2f;
-        float playerCenterY = player.y + player.collisionOffsetY + player.collisionHeight / 2f;
-
-        for (Enemy enemy : enemies) {
-            enemy.pathTimer += delta;
-
-            boolean timeToUpdate = enemy.pathTimer >= PATH_UPDATE_INTERVAL + enemy.pathUpdateOffset;
-            boolean pathEmpty = (enemy.currentPath == null || enemy.currentPath.isEmpty());
-            boolean pathEnded = (!pathEmpty && enemy.currentTargetIndex >= enemy.currentPath.size());
-
-            // Update when timer expires, or path is empty/finished
-            if (!timeToUpdate && !pathEmpty && !pathEnded)
-                continue;
-
-            enemy.pathTimer = 0f;
-
-            float enemyCenterX = enemy.x + enemy.collisionOffsetX + enemy.collisionWidth / 2f;
-            float enemyCenterY = enemy.y + enemy.collisionOffsetY + enemy.collisionHeight / 2f;
-
-            float dx = enemyCenterX - playerCenterX;
-            float dy = enemyCenterY - playerCenterY;
-            float dist = (float) Math.sqrt(dx * dx + dy * dy);
-
-            float distanceFactor = Math.min(dist / 300f, 1f);
-            enemy.pathUpdateOffset = 0.2f + distanceFactor * (float) Math.random() * 2f;
-
-            int startX = (int) (enemyCenterX / tileSize);
-            int startY = (int) (enemyCenterY / tileSize);
-            int targetX = (int) (playerCenterX / tileSize);
-            int targetY = (int) (playerCenterY / tileSize);
-
-            Node oldNextNode = null;
-            if (enemy.currentPath != null && !enemy.currentPath.isEmpty()
-                && enemy.currentTargetIndex < enemy.currentPath.size()) {
-                oldNextNode = enemy.currentPath.get(enemy.currentTargetIndex);
-            }
-
-            enemy.currentPath = enemy.pathfinder.findPath(startX, startY, targetX, targetY);
-
-            if (enemy.currentPath != null && !enemy.currentPath.isEmpty()) {
-                enemy.currentTargetIndex = getClosestIndex(enemy, oldNextNode);
-            } else {
-                enemy.currentTargetIndex = 0;
-            }
-        }
-    }
-
-
-
-    // gets the second-closest node so the player doesn't stop
-    private int getClosestIndex(Enemy enemy, Node oldNextNode) {
-        int closestIndex = 0;
-        float minDist = Float.MAX_VALUE;
-
-        for (int i = 0; i < enemy.currentPath.size(); i++) {
-            Node n = enemy.currentPath.get(i);
-            float dx, dy;
-            if (oldNextNode != null) {
-                dx = n.x - oldNextNode.x;
-                dy = n.y - oldNextNode.y;
-            } else {
-                dx = n.x - enemy.x / tileSize;
-                dy = n.y - enemy.y / tileSize;
-            }
-            float d = dx*dx + dy*dy;
-            if (d < minDist) {
-                minDist = d;
-                closestIndex = i;
-            }
-        }
-        return closestIndex;
     }
 
     // function for rendering the debug objects

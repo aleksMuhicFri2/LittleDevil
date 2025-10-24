@@ -46,7 +46,7 @@ public class GameScreen implements Screen {
     private final float CAMERA_SHAKE_INTENSITY = 1f;
 
     // Time
-    private final float TIME_PAUSE_DURATION = 0.15f; // seconds
+    private final float TIME_PAUSE_DURATION = 0.1f; // seconds
     private float timePauseTimer = 0f;
     private boolean timePaused = false;
 

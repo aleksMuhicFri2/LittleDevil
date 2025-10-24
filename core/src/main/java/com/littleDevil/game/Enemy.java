@@ -13,6 +13,7 @@ public abstract class Enemy {
 
     public float x, y;
     public float width = 32f, height = 32f;
+    protected float moveSpeed = 30f;
 
     // Collision
     public int collisionOffsetX = -4, collisionOffsetY = -16, collisionWidth = 8, collisionHeight = 4;
@@ -27,7 +28,7 @@ public abstract class Enemy {
 
     // Hit flash
     protected float hitFlashTime = 0f;
-    protected final float hitFlashDuration = 0.2f;
+    protected final float hitFlashDuration = 0.1f;
     protected boolean hitThisAttack = false;
 
     // Knockback
@@ -42,8 +43,6 @@ public abstract class Enemy {
     public List<Node> currentPath = new ArrayList<>();
     public int currentTargetIndex = 0;
     public float pathUpdateOffset, pathTimer = 0f;
-
-    protected float moveSpeed = 30f;
 
     public Enemy(float x, float y, String spriteSheetPath, GameWorld gameWorld) {
         this.x = x;
@@ -64,6 +63,77 @@ public abstract class Enemy {
         applyKnockback(delta, gameWorld);
         followPath(gameWorld, delta);
         handleAttack(player, gameScreen);
+    }
+
+    // Updates the path for enemies or reduces time until its updated
+    public void updatePathsForEnemy(float delta, Player player, GameWorld gameWorld, float PATH_UPDATE_INTERVAL) {
+
+        float playerCenterX = player.x + player.collisionOffsetX + player.collisionWidth / 2f;
+        float playerCenterY = player.y + player.collisionOffsetY + player.collisionHeight / 2f;
+
+        pathTimer += delta;
+        boolean timeToUpdate = pathTimer >= PATH_UPDATE_INTERVAL + pathUpdateOffset;
+        boolean pathEmpty = (currentPath == null || currentPath.isEmpty());
+        boolean pathEnded = (!pathEmpty && currentTargetIndex >= currentPath.size());
+
+        // Update when timer expires, or path is empty/finished
+        if (!timeToUpdate && !pathEmpty && !pathEnded) return;
+
+        pathTimer = 0f;
+
+        float enemyCenterX = x + collisionOffsetX + collisionWidth / 2f;
+        float enemyCenterY = y + collisionOffsetY + collisionHeight / 2f;
+
+        float dx = enemyCenterX - playerCenterX;
+        float dy = enemyCenterY - playerCenterY;
+        float dist = (float) Math.sqrt(dx * dx + dy * dy);
+
+        float distanceFactor = Math.min(dist / 300f, 1f);
+        pathUpdateOffset = 0.2f + distanceFactor * (float) Math.random() * 2f;
+        int startX = (int) (enemyCenterX / gameWorld.tileSize);
+        int startY = (int) (enemyCenterY / gameWorld.tileSize);
+        int targetX = (int) (playerCenterX / gameWorld.tileSize);
+        int targetY = (int) (playerCenterY / gameWorld.tileSize);
+
+        Node oldNextNode = null;
+        if (currentPath != null && !currentPath.isEmpty()
+            && currentTargetIndex < currentPath.size()) {
+            oldNextNode = currentPath.get(currentTargetIndex);
+        }
+
+        currentPath = pathfinder.findPath(startX, startY, targetX, targetY);
+
+        if (currentPath != null && !currentPath.isEmpty()) {
+            currentTargetIndex = getClosestIndex(oldNextNode, gameWorld);
+        } else {
+            currentTargetIndex = 0;
+        }
+    }
+
+
+
+    // gets the second-closest node so the player doesn't stop
+    private int getClosestIndex(Node oldNextNode, GameWorld gameWorld) {
+        int closestIndex = 0;
+        float minDist = Float.MAX_VALUE;
+
+        for (int i = 0; i < currentPath.size(); i++) {
+            Node n = currentPath.get(i);
+            float dx, dy;
+            if (oldNextNode != null) {
+                dx = n.x - oldNextNode.x;
+                dy = n.y - oldNextNode.y;
+            } else {
+                dx = n.x - x / gameWorld.tileSize;
+                dy = n.y - y / gameWorld.tileSize;
+            }
+            float d = dx*dx + dy*dy;
+            if (d < minDist) {
+                minDist = d;
+                closestIndex = i;
+            }
+        }
+        return closestIndex;
     }
 
     protected void applyKnockback(float delta, GameWorld world) {
@@ -91,8 +161,7 @@ public abstract class Enemy {
         if (dist > 1f) {
             float moveX = (dx / dist) * moveSpeed * delta;
             float moveY = (dy / dist) * moveSpeed * delta;
-            if (!checkCollision(x + moveX, y, world)) x += moveX;
-            if (!checkCollision(x, y + moveY, world)) y += moveY;
+            moveWithCollision(moveX, moveY, world);
         } else {
             currentTargetIndex++;
         }
@@ -119,6 +188,29 @@ public abstract class Enemy {
         }
     }
 
+    protected void moveWithCollision(float moveX, float moveY, GameWorld world) {
+        // Normalize diagonal speed
+        float length = (float) Math.sqrt(moveX * moveX + moveY * moveY);
+        if (length > 0) {
+            float factor = Math.min(1f, length / moveSpeed); // optional cap
+            moveX = moveX / length * moveSpeed * factor;
+            moveY = moveY / length * moveSpeed * factor;
+        }
+
+        // Step safely
+        int steps = (int) (Math.max(Math.abs(moveX), Math.abs(moveY)) / 2f) + 1; // 2 pixels per step
+        float stepX = moveX / steps;
+        float stepY = moveY / steps;
+
+        for (int i = 0; i < steps; i++) {
+            if (!checkCollision(x + stepX, y, world)) x += stepX;
+            else stepX = 0;
+            if (!checkCollision(x, y + stepY, world)) y += stepY;
+            else stepY = 0;
+            if (stepX == 0 && stepY == 0) break; // fully blocked
+        }
+    }
+
     protected void applyHitKnockback(float dx, float dy) {
         knockbackX = dx * knockbackStrength;
         knockbackY = dy * knockbackStrength;
@@ -133,6 +225,12 @@ public abstract class Enemy {
         if (value > 0) { value -= amount; if (value < 0) value = 0; }
         else if (value < 0) { value += amount; if (value > 0) value = 0; }
         return value;
+    }
+
+    protected float distanceToPlayer(Player player) {
+        float dx = x - player.x;
+        float dy = y - player.y;
+        return (float) Math.sqrt(dx * dx + dy * dy);
     }
 
     protected boolean checkCollision(float testX, float testY, GameWorld world) {
@@ -170,8 +268,9 @@ public abstract class Enemy {
         if (len > 0.001f) {
             moveX = (moveX / len) * repelStrength * Gdx.graphics.getDeltaTime();
             moveY = (moveY / len) * repelStrength * Gdx.graphics.getDeltaTime();
-            x += moveX;
-            y += moveY;
+
+            // collision-safe movement
+            moveWithCollision(moveX, moveY, world);
         }
     }
 
