@@ -40,6 +40,16 @@ public class GameScreen implements Screen {
 
     private Music backgroundMusic;
 
+    // Camera shake / pause
+    private float cameraShakeTimer = 0f;
+    private final float CAMERA_SHAKE_DURATION = 0.15f; // seconds
+    private final float CAMERA_SHAKE_INTENSITY = 1f;
+
+    // Time
+    private final float TIME_PAUSE_DURATION = 0.15f; // seconds
+    private float timePauseTimer = 0f;
+    private boolean timePaused = false;
+
     public GameScreen(Main game) {
         this.game = game;
     }
@@ -83,9 +93,13 @@ public class GameScreen implements Screen {
 
     @Override
     public void render(float delta) {
+        if (timePaused) delta = 0f; // freeze world
+        float worldDelta = timePaused ? 0f : delta;
+        float cameraDelta = delta; // camera still moves even if world is frozen
+
         // Update world
-        gameWorld.update(delta);
-        updateCamera(delta);
+        gameWorld.update(worldDelta, this);
+        updateCamera(cameraDelta);
         updateMouse();
 
         // --- Draw world ---
@@ -122,15 +136,33 @@ public class GameScreen implements Screen {
         Player player = gameWorld.player;
         if (player == null) return;
 
+        // Only move if not paused
         float lerp = 5f * delta;
-        camera.position.x += (player.x - camera.position.x) * lerp;
-        camera.position.y += (player.y - camera.position.y) * lerp;
+        float targetX = player.x;
+        float targetY = player.y;
+
+        camera.position.x += (targetX - camera.position.x) * lerp;
+        camera.position.y += (targetY - camera.position.y) * lerp;
+
+        // Apply shake
+        if (cameraShakeTimer > 0f) {
+            camera.position.x += (float)(Math.random() - 0.5f) * CAMERA_SHAKE_INTENSITY;
+            camera.position.y += (float)(Math.random() - 0.5f) * CAMERA_SHAKE_INTENSITY;
+            cameraShakeTimer -= delta;
+        }
 
         // Clamp inside map
         float halfW = camera.viewportWidth / 2f;
         float halfH = camera.viewportHeight / 2f;
         camera.position.x = Math.max(halfW, Math.min(gameWorld.mapWidth - halfW, camera.position.x));
         camera.position.y = Math.max(halfH, Math.min(gameWorld.mapHeight - halfH, camera.position.y));
+
+        if (timePaused) {
+            timePauseTimer -= Gdx.graphics.getDeltaTime();
+            if (timePauseTimer <= 0f) {
+                timePaused = false;
+            }
+        }
 
         camera.update();
     }
@@ -204,5 +236,13 @@ public class GameScreen implements Screen {
 
     public static float getMouseAngle() {
         return mouseAngle;
+    }
+
+    public void triggerTimePause() {
+        if (!timePaused) {
+            timePaused = true;
+            timePauseTimer = TIME_PAUSE_DURATION;
+            cameraShakeTimer = CAMERA_SHAKE_DURATION; // keep shake too
+        }
     }
 }

@@ -56,12 +56,13 @@ public class GameWorld {
 
         // Enemies
         enemies = new ArrayList<>();
-        enemies.add(new Enemy(250, 140, "Spritesheets/templarSpritesheet.png", this));
-        enemies.add(new Enemy(270, 140, "Spritesheets/templarSpritesheet.png", this));
-        enemies.add(new Enemy(290, 140, "Spritesheets/templarSpritesheet.png", this));
-        enemies.add(new Enemy(310, 140, "Spritesheets/templarSpritesheet.png", this));
-        enemies.add(new Enemy(330, 140, "Spritesheets/templarSpritesheet.png", this));
-        enemies.add(new Enemy(350, 140, "Spritesheets/templarSpritesheet.png", this));
+        enemies = new ArrayList<>();
+        enemies.add(new Templar(250, 140, this));
+        enemies.add(new Templar(270, 140, this));
+        enemies.add(new Templar(290, 140, this));
+        enemies.add(new Templar(310, 140, this));
+        enemies.add(new Templar(330, 140, this));
+        enemies.add(new Templar(350, 140, this));
 
 
         // Altars
@@ -93,13 +94,13 @@ public class GameWorld {
     }
 
     // update all the logic
-    public void update(float delta) {
+    public void update(float delta, GameScreen gameScreen) {
         player.update(delta, this);
 
         // update A* paths when needed = reduce timer
         updatePathsForEnemies();
 
-        for (Enemy enemy : enemies) enemy.update(delta, player, this);
+        for (Enemy enemy : enemies) enemy.update(delta, player, this, gameScreen);
         for (GameCandle candle : candles) candle.update(delta);
 
         bigAltar.update(delta, player,this);
@@ -195,47 +196,49 @@ public class GameWorld {
         float playerCenterY = player.y + player.collisionOffsetY + player.collisionHeight / 2f;
 
         for (Enemy enemy : enemies) {
-            // Increase individual timer
             enemy.pathTimer += delta;
 
-            if (enemy.pathTimer < PATH_UPDATE_INTERVAL + enemy.pathUpdateOffset)
-                continue; // not time for update yet, skip
+            boolean timeToUpdate = enemy.pathTimer >= PATH_UPDATE_INTERVAL + enemy.pathUpdateOffset;
+            boolean pathEmpty = (enemy.currentPath == null || enemy.currentPath.isEmpty());
+            boolean pathEnded = (!pathEmpty && enemy.currentTargetIndex >= enemy.currentPath.size());
+
+            // Update when timer expires, or path is empty/finished
+            if (!timeToUpdate && !pathEmpty && !pathEnded)
+                continue;
 
             enemy.pathTimer = 0f;
 
             float enemyCenterX = enemy.x + enemy.collisionOffsetX + enemy.collisionWidth / 2f;
             float enemyCenterY = enemy.y + enemy.collisionOffsetY + enemy.collisionHeight / 2f;
 
-            float distanceToPlayerX = enemyCenterX - playerCenterX;
-            float distanceToPlayerY = enemyCenterY - playerCenterY;
-            float dist = (float)Math.sqrt(distanceToPlayerX * distanceToPlayerX + distanceToPlayerY * distanceToPlayerY);
+            float dx = enemyCenterX - playerCenterX;
+            float dy = enemyCenterY - playerCenterY;
+            float dist = (float) Math.sqrt(dx * dx + dy * dy);
 
-            // Distance-based random offset
             float distanceFactor = Math.min(dist / 300f, 1f);
-            enemy.pathUpdateOffset = 0.2f + distanceFactor * (float)Math.random() * 2f;
+            enemy.pathUpdateOffset = 0.2f + distanceFactor * (float) Math.random() * 2f;
 
-            int startX = (int)(enemyCenterX / tileSize);
-            int startY = (int)(enemyCenterY / tileSize);
-            int targetX = (int)(playerCenterX / tileSize);
-            int targetY = (int)(playerCenterY / tileSize);
+            int startX = (int) (enemyCenterX / tileSize);
+            int startY = (int) (enemyCenterY / tileSize);
+            int targetX = (int) (playerCenterX / tileSize);
+            int targetY = (int) (playerCenterY / tileSize);
 
-            // --- Smooth continuation logic --- DON'T TOUCH otherwise enemy stops on update
             Node oldNextNode = null;
-            if (enemy.currentPath != null && !enemy.currentPath.isEmpty() && enemy.currentTargetIndex < enemy.currentPath.size()) {
+            if (enemy.currentPath != null && !enemy.currentPath.isEmpty()
+                && enemy.currentTargetIndex < enemy.currentPath.size()) {
                 oldNextNode = enemy.currentPath.get(enemy.currentTargetIndex);
             }
 
             enemy.currentPath = enemy.pathfinder.findPath(startX, startY, targetX, targetY);
 
             if (enemy.currentPath != null && !enemy.currentPath.isEmpty()) {
-
-
                 enemy.currentTargetIndex = getClosestIndex(enemy, oldNextNode);
             } else {
                 enemy.currentTargetIndex = 0;
             }
         }
     }
+
 
 
     // gets the second-closest node so the player doesn't stop

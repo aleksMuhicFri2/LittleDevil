@@ -6,204 +6,179 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
-public class Enemy {
+public abstract class Enemy {
 
-    public float x, y; // world position
-    public float width = 32f;
-    public float height = 32f;
+    public float x, y;
+    public float width = 32f, height = 32f;
 
     // Collision
     public int collisionOffsetX = -4, collisionOffsetY = -16, collisionWidth = 8, collisionHeight = 4;
 
-    // Hitbox for player's sword
-    private int hitboxOffsetX = -12, hitboxOffsetY = -16, hitboxWidth = 24, hitboxHeight = 20;
+    // Hitbox
+    protected int hitboxOffsetX = -12, hitboxOffsetY = -16, hitboxWidth = 24, hitboxHeight = 20;
 
-    private Texture spriteSheet;
-    private TextureRegion currentFrame;
+    protected Texture spriteSheet;
+    protected TextureRegion currentFrame;
 
     public boolean isAlive = true;
 
     // Hit flash
-    private float hitFlashTime = 0f;
-    private final float hitFlashDuration = 0.2f;
-    private boolean hitThisAttack = false;
+    protected float hitFlashTime = 0f;
+    protected final float hitFlashDuration = 0.2f;
+    protected boolean hitThisAttack = false;
 
     // Knockback
-    private float knockbackX = 0f;
-    private float knockbackY = 0f;
-    private float knockbackDecay = 140f; // higher = stops faster
+    protected float knockbackX = 0f, knockbackY = 0f;
+    protected float knockbackDecay = 100f;
+    protected float knockbackStrength = 100f;
 
-    private Sound hitSound;
+    protected Sound hitSound;
 
     // Pathfinding
     public Pathfinder pathfinder;
     public List<Node> currentPath = new ArrayList<>();
     public int currentTargetIndex = 0;
-    public float pathUpdateOffset = 0f;
-    public float pathTimer = 0f;
+    public float pathUpdateOffset, pathTimer = 0f;
 
-    public Enemy(float enemyX, float enemyY, String spriteSheetPath, GameWorld gameWorld) {
-        this.x = enemyX;
-        this.y = enemyY;
+    protected float moveSpeed = 30f;
+
+    public Enemy(float x, float y, String spriteSheetPath, GameWorld gameWorld) {
+        this.x = x;
+        this.y = y;
         this.pathfinder = new Pathfinder(gameWorld);
 
         spriteSheet = new Texture(spriteSheetPath);
         currentFrame = new TextureRegion(spriteSheet, 0, 0, 32, 32);
         hitSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/hitSound.mp3"));
-        this.pathUpdateOffset = (float)Math.random() * 2f; // random offset for timing
-
+        pathUpdateOffset = (float) Math.random() * 2f;
     }
 
-    public void update(float delta, Player player, GameWorld gameWorld) {
+    public void update(float delta, Player player, GameWorld gameWorld, GameScreen gameScreen) {
         if (!isAlive) return;
 
-        // --- Hit flash timer ---
         if (hitFlashTime > 0) hitFlashTime -= delta;
-
         applySeparationForce(gameWorld);
+        applyKnockback(delta, gameWorld);
+        followPath(gameWorld, delta);
+        handleAttack(player, gameScreen);
+    }
 
-        // --- Knockback movement ---
+    protected void applyKnockback(float delta, GameWorld world) {
         float nextX = x + knockbackX * delta;
         float nextY = y + knockbackY * delta;
 
-        if (!checkCollision(nextX, y, gameWorld)) x = nextX;
-        else knockbackX = 0;
-
-        if (!checkCollision(x, nextY, gameWorld)) y = nextY;
-        else knockbackY = 0;
+        if (!checkCollision(nextX, y, world)) x = nextX; else knockbackX = 0;
+        if (!checkCollision(x, nextY, world)) y = nextY; else knockbackY = 0;
 
         knockbackX = approachZero(knockbackX, knockbackDecay * delta);
         knockbackY = approachZero(knockbackY, knockbackDecay * delta);
-
-        // --- Pathfinding logic ---
-        float collisionCenterX = x + collisionOffsetX + collisionWidth / 2f;
-        float collisionCenterY = y + collisionOffsetY + collisionHeight / 2f;
-
-        followPath(gameWorld, collisionCenterX, collisionCenterY, delta);
-        handleAttack(player);
     }
 
-    // Follow the path thats created by the Pathfinding algorithm quite smoothly
-    private void followPath(GameWorld gameWorld, float testX, float testY, float delta) {
-        // --- Move along path ---
-        if (currentPath != null && !currentPath.isEmpty() && currentTargetIndex < currentPath.size()) {
-            Node targetNode = currentPath.get(currentTargetIndex);
-            float targetWorldX = targetNode.x * gameWorld.tileSize + gameWorld.tileSize / 2f;
-            float targetWorldY = targetNode.y * gameWorld.tileSize + gameWorld.tileSize / 2f;
+    protected void followPath(GameWorld world, float delta) {
+        if (currentPath == null || currentPath.isEmpty() || currentTargetIndex >= currentPath.size()) return;
 
-            float dx = targetWorldX - testX;
-            float dy = targetWorldY - testY;
-            float dist = (float)Math.sqrt(dx*dx + dy*dy);
+        Node target = currentPath.get(currentTargetIndex);
+        float targetX = target.x * world.tileSize + world.tileSize / 2f;
+        float targetY = target.y * world.tileSize + world.tileSize / 2f;
 
-            if (dist > 1f) { // small threshold
-                float moveSpeed = 30f;
-                float moveX = (dx / dist) * moveSpeed * delta;
-                float moveY = (dy / dist) * moveSpeed * delta;
+        float dx = targetX - (x + collisionOffsetX + collisionWidth / 2f);
+        float dy = targetY - (y + collisionOffsetY + collisionHeight / 2f);
+        float dist = (float) Math.sqrt(dx * dx + dy * dy);
 
-                if (!checkCollision(x + moveX, y, gameWorld)) x += moveX;
-                if (!checkCollision(x, y + moveY, gameWorld)) y += moveY;
-            } else {
-                currentTargetIndex++;
-            }
+        if (dist > 1f) {
+            float moveX = (dx / dist) * moveSpeed * delta;
+            float moveY = (dy / dist) * moveSpeed * delta;
+            if (!checkCollision(x + moveX, y, world)) x += moveX;
+            if (!checkCollision(x, y + moveY, world)) y += moveY;
         } else {
-
+            currentTargetIndex++;
         }
     }
 
-    // if in range when player is attacking, they get hit
-    private void handleAttack(Player player) {
-        // --- Player attack detection ---
+    protected void handleAttack(Player player, GameScreen gameScreen) {
         if (!player.isAttacking) hitThisAttack = false;
-
         if (player.isAttacking && !hitThisAttack) {
             float dx = x - player.x;
             float dy = y - player.y;
-            float distance = (float)Math.sqrt(dx * dx + dy * dy);
-
+            float distance = (float) Math.sqrt(dx * dx + dy * dy);
             if (distance <= player.range) {
                 dx /= distance;
                 dy /= distance;
-
                 float dot = player.attackDirX * dx + player.attackDirY * dy;
-
-                if (dot > 0.3f) { // in front of player
+                if (dot > 0.3f) {
                     hitFlashTime = hitFlashDuration;
                     hitThisAttack = true;
-
-                    float knockbackStrength = 80f;
-                    knockbackX = dx * knockbackStrength;
-                    knockbackY = dy * knockbackStrength;
-
-                    if (hitSound != null)
-                        hitSound.play(0.1f, 0.8f + (float)(Math.random() * 0.4f), 0f);
+                    applyHitKnockback(dx, dy);
+                    playHitSound();
+                    gameScreen.triggerTimePause();
                 }
             }
         }
     }
 
-    // function that helps with being pushed away when hit by player
-    private float approachZero(float value, float amount) {
+    protected void applyHitKnockback(float dx, float dy) {
+        knockbackX = dx * knockbackStrength;
+        knockbackY = dy * knockbackStrength;
+    }
+
+    protected void playHitSound() {
+        if (hitSound != null)
+            hitSound.play(0.1f, 0.8f + (float) (Math.random() * 0.4f), 0f);
+    }
+
+    protected float approachZero(float value, float amount) {
         if (value > 0) { value -= amount; if (value < 0) value = 0; }
         else if (value < 0) { value += amount; if (value > 0) value = 0; }
         return value;
     }
 
-    private boolean checkCollision(float testX, float testY, GameWorld world) {
-        int left = (int)((testX + collisionOffsetX) / world.tileSize);
-        int right = (int)((testX + collisionOffsetX + collisionWidth) / world.tileSize);
-        int bottom = (int)((testY + collisionOffsetY) / world.tileSize);
-        int top = (int)((testY + collisionOffsetY + collisionHeight) / world.tileSize);
+    protected boolean checkCollision(float testX, float testY, GameWorld world) {
+        int left = (int) ((testX + collisionOffsetX) / world.tileSize);
+        int right = (int) ((testX + collisionOffsetX + collisionWidth) / world.tileSize);
+        int bottom = (int) ((testY + collisionOffsetY) / world.tileSize);
+        int top = (int) ((testY + collisionOffsetY + collisionHeight) / world.tileSize);
 
         for (int y = bottom; y <= top; y++)
             for (int x = left; x <= right; x++)
                 if (world.isTileType(x, y, GameWorld.TileType.BLOCK)) return true;
-
         return false;
     }
 
-    // keeps the enemies from becoming one -> if they get too close to each other, they repel
     public void applySeparationForce(GameWorld world) {
-        float repelStrength = 6f;    // how strongly they push away
-        float desiredDistance = 15f;   // minimum distance between enemies
+        float repelStrength = 6f;
+        float desiredDistance = 15f;
 
         float moveX = 0f, moveY = 0f;
 
         for (Enemy other : world.enemies) {
             if (other == this) continue;
-
             float dx = this.x - other.x;
             float dy = this.y - other.y;
             float dist2 = dx * dx + dy * dy;
-
-            // Only repel if too close
             if (dist2 < desiredDistance * desiredDistance && dist2 > 0.0001f) {
-                float dist = (float)Math.sqrt(dist2);
-                float push = (desiredDistance - dist) / desiredDistance; // strength 0..1
+                float dist = (float) Math.sqrt(dist2);
+                float push = (desiredDistance - dist) / desiredDistance;
                 moveX += (dx / dist) * push;
                 moveY += (dy / dist) * push;
             }
         }
 
-        float len = (float)Math.sqrt(moveX * moveX + moveY * moveY);
+        float len = (float) Math.sqrt(moveX * moveX + moveY * moveY);
         if (len > 0.001f) {
             moveX = (moveX / len) * repelStrength * Gdx.graphics.getDeltaTime();
             moveY = (moveY / len) * repelStrength * Gdx.graphics.getDeltaTime();
-
-            // Apply the separation
-            this.x += moveX;
-            this.y += moveY;
+            x += moveX;
+            y += moveY;
         }
     }
 
-    public TextureRegion getCurrentFrame() {
-        return currentFrame;
+    public void render(SpriteBatch batch) {
+        batch.draw(currentFrame, x, y, width, height);
     }
 
-
-    // HELPER FUNCTIONS FOR RENDERING IN DEBUG MODE
     public void renderHitbox(SpriteBatch batch, Texture pixel) {
         batch.setColor(1f, 0f, 0f, 0.3f);
         batch.draw(pixel, x + hitboxOffsetX, y + hitboxOffsetY, hitboxWidth, hitboxHeight);
@@ -211,22 +186,27 @@ public class Enemy {
     }
 
     public void renderCollisionBox(SpriteBatch batch, Texture pixel) {
-        batch.setColor(0f, 1f, 0f, 0.3f); // semi-transparent green for collision
+        batch.setColor(0f, 1f, 0f, 0.3f);
         batch.draw(pixel, x + collisionOffsetX, y + collisionOffsetY, collisionWidth, collisionHeight);
         batch.setColor(Color.WHITE);
     }
 
-    public void renderPath(SpriteBatch batch, Texture pixel, GameWorld gameWorld) {
+    public void renderPath(SpriteBatch batch, Texture pixel, GameWorld world) {
         if (currentPath == null || currentPath.isEmpty()) return;
         batch.setColor(Color.BLUE);
-
         for (Node node : currentPath) {
-            float worldX = node.x * gameWorld.tileSize;
-            float worldY = node.y * gameWorld.tileSize;
-            batch.draw(pixel, worldX, worldY, gameWorld.tileSize, gameWorld.tileSize);
+            float worldX = node.x * world.tileSize;
+            float worldY = node.y * world.tileSize;
+            batch.draw(pixel, worldX, worldY, world.tileSize, world.tileSize);
         }
         batch.setColor(Color.WHITE);
     }
+
+    public TextureRegion getCurrentFrame() {
+        return currentFrame;
+    }
+
+    //public abstract void attack();
 
     public void dispose() {
         spriteSheet.dispose();
