@@ -41,6 +41,7 @@ public class GameWorld {
 
     public float score = 0f;
     public int wave = 1;
+    public int combo = 1;
 
     public GameWorld(int mapWidth, int mapHeight, int tileSize) {
         this.mapWidth = mapWidth;
@@ -158,7 +159,7 @@ public class GameWorld {
 
         renderList.clear();
 
-        renderDebug(false, batch);
+        renderDebug(true, batch);
 
         for (Enemy e : enemies) {
             if (e instanceof Templar templar) {
@@ -229,6 +230,10 @@ public class GameWorld {
 
     public int getWave() {
         return wave;
+    }
+
+    public int getCombo() {
+        return combo;
     }
 
     public void dispose() {

@@ -18,9 +18,11 @@ public class Pathfinder {
     public List<Node> findPath(int startX, int startY, int goalX, int goalY) {
         this.currentGrid = world.collisionGrid;
 
-        // Bounds check early to avoid expensive pathfinding when out of range
-        if (!isInBounds(startX, startY) || !isInBounds(goalX, goalY))
-            return Collections.emptyList();
+        // Clamp start/goal so they’re always safely inside the world
+        startX = clamp(startX, 0, currentGrid[0].length - 1);
+        startY = clamp(startY, 0, currentGrid.length - 1);
+        goalX = clamp(goalX, 0, currentGrid[0].length - 1);
+        goalY = clamp(goalY, 2, currentGrid.length - 3); // do not touch this, it's a little buggy
 
         Node start = new Node(startX, startY);
         Node goal = new Node(goalX, goalY);
@@ -39,7 +41,7 @@ public class Pathfinder {
 
             for (Node neighbor : getNeighbors(current)) {
                 if (!isInBounds(neighbor.x, neighbor.y)) continue;
-                if (isBlocked(neighbor.x, neighbor.y, 1)) continue; // 1-tile offset for collision padding
+                if (isBlocked(neighbor.x, neighbor.y, 1)) continue;
                 if (closed.contains(neighbor)) continue;
 
                 float newCost = current.gCost + distance(current, neighbor);
@@ -70,10 +72,14 @@ public class Pathfinder {
     }
 
     private boolean isBlocked(int tileX, int tileY, int offset) {
-        // Check a square around (tileX, tileY) with size offset
-        for (int y = tileY - offset; y <= tileY + offset; y++) {
-            for (int x = tileX - offset; x <= tileX + offset; x++) {
-                if (!isInBounds(x, y)) continue;
+        // Make sure offset checks never go outside world boundaries
+        int minY = Math.max(tileY - offset, 0);
+        int maxY = Math.min(tileY + offset, currentGrid.length - 1);
+        int minX = Math.max(tileX - offset, 0);
+        int maxX = Math.min(tileX + offset, currentGrid[0].length - 1);
+
+        for (int y = minY; y <= maxY; y++) {
+            for (int x = minX; x <= maxX; x++) {
                 if (currentGrid[y][x]) return true;
             }
         }
@@ -81,17 +87,15 @@ public class Pathfinder {
     }
 
     private float heuristic(Node a, Node b) {
-        // Euclidean distance gives smooth diagonals
         float dx = a.x - b.x;
         float dy = a.y - b.y;
         return (float) Math.sqrt(dx * dx + dy * dy);
     }
 
     private float distance(Node a, Node b) {
-        // Diagonals cost slightly more than straight movement
         int dx = Math.abs(a.x - b.x);
         int dy = Math.abs(a.y - b.y);
-        return (dx + dy == 2) ? 1.4142f : 1f; // √2 for diagonals
+        return (dx + dy == 2) ? 1.4142f : 1f;
     }
 
     private List<Node> getNeighbors(Node node) {
@@ -114,5 +118,9 @@ public class Pathfinder {
         }
         Collections.reverse(path);
         return path;
+    }
+
+    private int clamp(int val, int min, int max) {
+        return Math.max(min, Math.min(max, val));
     }
 }

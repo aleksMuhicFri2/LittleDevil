@@ -61,9 +61,7 @@ public class BigAltar {
                     // TODO gameWorld.openUpgrades()
                 }
                 // Loop between 8–9–10 when fully activated
-                if (frameIndex > 9) {
-                    frameIndex = 8;
-                }
+                if (frameIndex > 9) frameIndex = 8;
             } else {
                 // If reversing but player re-enters, resume forward direction
                 reversing = false;
@@ -79,9 +77,18 @@ public class BigAltar {
             }
         }
 
-        // Clamp just in case
+        // Clamp frame index
         frameIndex = Math.max(0, Math.min(frameIndex, totalFrames - 1));
         currentFrame = frames[frameIndex];
+
+        // --- Handle candle lights (interpolated alpha) ---
+        // 5 lights correspond to frameIndex 1–6
+        for (int i = 0; i < 5; i++) {
+            int lightIndex = 14 + i;
+            float targetAlpha = (frameIndex >= i + 1) ? 0.7f : 0f;
+            // Interpolate alpha smoothly
+            LightData.lightObjects[lightIndex].alpha += (targetAlpha - LightData.lightObjects[lightIndex].alpha) * 20f * delta;
+        }
     }
 
     public void render(SpriteBatch batch) {

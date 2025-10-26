@@ -65,6 +65,8 @@ public class SmallAltar {
         else if (cycling) {
             if (!boostSpawned) {
                 boost = new Boost(Boost.Type.SPEED, x + 14, y + 26, new Texture("MapAssets/movementBoost.png"));
+                manageLight(0.7f);
+
                 boostSpawned = true;
             }
 
@@ -81,6 +83,7 @@ public class SmallAltar {
             // If player steps on it while loaded
             if (player.isOnBoost(gameWorld)) {
                 boost.applyEffect(player);
+                manageLight(0f);
                 resetAltar();
             }
         }
@@ -102,6 +105,13 @@ public class SmallAltar {
         if (boost != null && !boost.pickedUp) {
             boost.render(batch);
         }
+    }
+
+    private void manageLight(float alpha) {
+        LightData.lightObjects[19].alpha = alpha;
+        LightData.lightObjects[20].alpha = alpha;
+        LightData.lightObjects[21].alpha = alpha;
+        LightData.lightObjects[22].alpha = alpha;
     }
 
     public void dispose() {
