@@ -241,7 +241,7 @@ public abstract class Enemy {
 
         for (int y = bottom; y <= top; y++)
             for (int x = left; x <= right; x++)
-                if (world.isTileType(x, y, GameWorld.TileType.BLOCK)) return true;
+                if (world.isTileType(x, y, GameWorld.TileType.BLOCK) || world.isTileType(x, y, GameWorld.TileType.BLOCKENEMY)) return true;
         return false;
     }
 

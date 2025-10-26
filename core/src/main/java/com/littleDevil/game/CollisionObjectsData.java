@@ -61,6 +61,8 @@ public class CollisionObjectsData {
         new CollisionObject("BorderLeft", 0,0,1,400,0,0,0,0,1),
 
         // Right border
-        new CollisionObject("BorderRight",600 - 4,0,1,400,0,0,0,0,1)
+        new CollisionObject("BorderRight",600 - 4,0,1,400,0,0,0,0,1),
+
+        new CollisionObject("EnemyBlockade", 276, 152, 40, 1, 0, 0, 0, 0, 6)
     };
 }

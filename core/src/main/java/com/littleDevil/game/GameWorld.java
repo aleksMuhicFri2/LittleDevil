@@ -37,7 +37,7 @@ public class GameWorld {
     // Pathing
     private final float PATH_UPDATE_INTERVAL = 1f; // 5 updates per second
 
-    public enum TileType { BLOCK, STAIRS, ALTAR, BOOST }
+    public enum TileType { BLOCK, STAIRS, ALTAR, BOOST, BLOCKENEMY }
 
     public float score = 0f;
     public int wave = 1;
@@ -182,6 +182,7 @@ public class GameWorld {
             case ALTAR -> tile == 3;
             case BOOST -> tile == 4;
             case STAIRS -> tile == 5;
+            case BLOCKENEMY -> tile == 6;
         };
     }
 
@@ -192,8 +193,9 @@ public class GameWorld {
         for (int y = 0; y < heightInTiles; y++) {
             for (int x = 0; x < widthInTiles; x++) {
                 int tile = grid[y][x];
-                collisionGrid[y][x] = (tile == 1); // world edge
-                collisionGrid[y][x] = (tile == 2); // obstacle collision
+                if(tile == 1 || tile == 2 || tile == 6){
+                    collisionGrid[y][x] = true;
+                }
             }
         }
     }
@@ -226,7 +228,7 @@ public class GameWorld {
     }
 
     public int getWave() {
-        return (int)wave;
+        return wave;
     }
 
     public void dispose() {
