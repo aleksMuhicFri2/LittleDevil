@@ -4,6 +4,7 @@ import com.badlogic.gdx.*;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.*;
 import com.badlogic.gdx.graphics.g2d.*;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -26,6 +27,7 @@ public class GameScreen implements Screen {
 
     // UI
     private Texture playerUI;
+    private Texture wavePanel;
 
     // Mouse tracking
     private final Vector2 mouseWorldPos = new Vector2();
@@ -38,15 +40,19 @@ public class GameScreen implements Screen {
     private Texture darknessTexture;
     private float darknessAlpha = 0.55f;
 
+    // Font + layout
+    private BitmapFont scoreFont;
+    private GlyphLayout scoreLayout;
+    private BitmapFont waveFont;
+    private GlyphLayout waveLayout;
+
     private Music backgroundMusic;
 
     // Camera shake / pause
     private float cameraShakeTimer = 0f;
-    private final float CAMERA_SHAKE_DURATION = 0.15f; // seconds
     private final float CAMERA_SHAKE_INTENSITY = 1f;
 
     // Time
-    private final float TIME_PAUSE_DURATION = 0.1f; // seconds
     private float timePauseTimer = 0f;
     private boolean timePaused = false;
 
@@ -58,7 +64,22 @@ public class GameScreen implements Screen {
     public void show() {
         batch = new SpriteBatch();
         pixel = new Texture("whitePixel.png");
-        playerUI = new Texture("playerUITest.png");
+        playerUI = new Texture("GameUI/playerUI.png");
+        wavePanel = new Texture("GameUI/wavePanel.png");
+
+        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
+        FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
+        param.size = (int)(Gdx.graphics.getHeight() * 0.06f); // around 6% of screen height
+        param.color = new Color(0.85f, 0.85f, 0.85f, 0.5f); // slightly grayish white
+        scoreFont = generator.generateFont(param);
+        param.size = (int)(Gdx.graphics.getHeight() * 0.05f); // around 6% of screen height
+        param.color = new Color(0f, 0f, 0f, 1f); // slightly grayish white
+        param.borderWidth = 0.5f;
+        waveFont = generator.generateFont(param);
+        generator.dispose();
+
+        scoreLayout = new GlyphLayout();
+        waveLayout = new GlyphLayout();
 
         backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("Sounds/gameBackgroundMusic.mp3"));
         backgroundMusic.setLooping(true);
@@ -129,6 +150,9 @@ public class GameScreen implements Screen {
         batch.setProjectionMatrix(UICamera.combined);
         batch.begin();
         drawPlayerUI();
+        drawWavePanelUI();
+        drawWaveUI();
+        drawScoreUI();
         batch.end();
     }
 
@@ -179,13 +203,9 @@ public class GameScreen implements Screen {
         }
     }
 
-
-    private void drawPlayerUI() {
+    private float getScale(float maxScale) {
         float referenceWidth = 1920f;
         float referenceHeight = 1080f;
-
-        float baseWidth = 112f;
-        float baseHeight = 32f;
 
         // Scale relative to smaller dimension
         float scale = Math.min(
@@ -193,8 +213,29 @@ public class GameScreen implements Screen {
             Gdx.graphics.getHeight() / referenceHeight
         );
 
-        // Cap the scale so it never becomes gigantic
-        scale = Math.min(scale * 8f, 4f); // <-- tweak 6f to whatever feels right
+        return Math.min(scale * 8f, maxScale);
+    }
+
+    private void drawWavePanelUI() {
+        float baseWidth = 64f;
+        float baseHeight = 64f;
+
+        float scale = getScale(3f);
+
+        float uiWidth = baseWidth * scale;
+        float uiHeight = baseHeight * scale;
+
+        float uiX = (UIViewport.getWorldWidth() - uiWidth) / 2f;
+        float uiY = UIViewport.getWorldHeight() - (uiHeight / 1.5f);
+
+        batch.draw(wavePanel, uiX, uiY, uiWidth, uiHeight);
+    }
+
+    private void drawPlayerUI() {
+        float baseWidth = 112f;
+        float baseHeight = 32f;
+
+        float scale = getScale(3.5f);
 
         float uiWidth = baseWidth * scale;
         float uiHeight = baseHeight * scale;
@@ -204,6 +245,43 @@ public class GameScreen implements Screen {
         float uiY = 0 - uiHeight * 0.5f;
 
         batch.draw(playerUI, uiX, uiY, uiWidth, uiHeight);
+    }
+
+    private void drawScoreUI() {
+        String label = "Score:";
+        String value = String.valueOf(gameWorld.getScore());
+
+        scoreLayout.setText(scoreFont, label);
+        float labelX = UIViewport.getWorldWidth() - scoreLayout.width - 100f; // adjust this offset
+        float y = UIViewport.getWorldHeight() - 20f;
+
+        // Draw the fixed "Score:" label
+        scoreFont.draw(batch, label, labelX, y);
+
+        // Now draw the number right after it
+        float numberX = labelX + scoreLayout.width + 10f; // 10f = small gap
+        scoreLayout.setText(scoreFont, value);
+        scoreFont.draw(batch, value, numberX, y);
+    }
+
+    private void drawWaveUI() {
+        String label = "Wave";
+        String value = String.valueOf(gameWorld.getWave());
+
+        // Measure both parts
+        waveLayout.setText(waveFont, label);
+        float labelWidth = waveLayout.width;
+        waveLayout.setText(waveFont, value);
+        float valueWidth = waveLayout.width;
+
+        // Compute total width + spacing
+        float totalWidth = labelWidth + 10f + valueWidth;
+        float startX = (UIViewport.getWorldWidth() - totalWidth) / 2f;
+        float y = UIViewport.getWorldHeight() - 43f;
+
+        // Draw both centered
+        waveFont.draw(batch, label, startX, y);
+        waveFont.draw(batch, value, startX + labelWidth + 10f, y);
     }
 
     @Override
@@ -232,17 +310,18 @@ public class GameScreen implements Screen {
         pixel.dispose();
         playerUI.dispose();
         gameWorld.dispose();
+        scoreFont.dispose();
     }
 
     public static float getMouseAngle() {
         return mouseAngle;
     }
 
-    public void triggerTimePause() {
+    public void triggerTimePause(float freezeDuration, float cameraShakeDuration) {
         if (!timePaused) {
             timePaused = true;
-            timePauseTimer = TIME_PAUSE_DURATION;
-            cameraShakeTimer = CAMERA_SHAKE_DURATION; // keep shake too
+            timePauseTimer = freezeDuration;
+            cameraShakeTimer = cameraShakeDuration; // keep shake too
         }
     }
 }

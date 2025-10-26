@@ -11,6 +11,8 @@ public class Player {
 
     // Position
     public float x, y, prevX, prevY;
+    public int width = 32;
+    public int height = 32;
 
     // Stats
     public float baseHP = 200f, currentHP = baseHP;
@@ -25,6 +27,7 @@ public class Player {
 
     // Collision
     public int collisionOffsetX = -4, collisionOffsetY = -16, collisionWidth = 8, collisionHeight = 4;
+    public int hitBoxWidth = 8, hitBoxHeight = 8;
 
     // Dash
     private boolean isDashing = false;
@@ -52,14 +55,21 @@ public class Player {
     private float walkStepTimer = 0f;
     private final float walkStepInterval = 0.3f;
 
+    // Knockback
+    private float knockbackX = 0f, knockbackY = 0f;
+    private float knockbackDecay = 150f;
+    private float hitFlashTimer = 0f;
+    private final float hitFlashDuration = 0.1f;
+
+
     public Player(float startX, float startY, String spriteSheetPath) {
         this.x = startX;
         this.y = startY;
 
         // Load player frames
         spriteSheet = new Texture(spriteSheetPath);
-        frames = new TextureRegion[9];
-        for (int i = 0; i < 9; i++) frames[i] = new TextureRegion(spriteSheet, i * 32, 0, 32, 32);
+        frames = new TextureRegion[10];
+        for (int i = 0; i < 10; i++) frames[i] = new TextureRegion(spriteSheet, i * 32, 0, 32, 32);
         currentFrame = frames[0];  // start at attack frame 7
         currentSwordFrame = null;
 
@@ -80,6 +90,7 @@ public class Player {
         if (speedBoostTimer > 0) { speedBoostTimer -= delta; if (speedBoostTimer <= 0) speedMultiplier = 1f; }
         if (damageBoostTimer > 0) { damageBoostTimer -= delta; if (damageBoostTimer <= 0) damageMultiplier = 1f; }
         if (lifestealBoostTimer > 0) { lifestealBoostTimer -= delta; if (lifestealBoostTimer <= 0) lifestealMultiplier = 1f; }
+        if (hitFlashTimer > 0f) hitFlashTimer -= delta;
 
         // save position in case of collision
         prevX = x;
@@ -87,10 +98,12 @@ public class Player {
 
         // Movement input
         float moveX = 0, moveY = 0;
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) moveY += 1;
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) moveY -= 1;
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) moveX -= 1;
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) moveX += 1;
+        if(!(hitFlashTimer > 0)) {
+            if (Gdx.input.isKeyPressed(Input.Keys.W)) moveY += 1;
+            if (Gdx.input.isKeyPressed(Input.Keys.S)) moveY -= 1;
+            if (Gdx.input.isKeyPressed(Input.Keys.A)) moveX -= 1;
+            if (Gdx.input.isKeyPressed(Input.Keys.D)) moveX += 1;
+        }
 
         if (moveX > 0) facingRight = true; else if (moveX < 0) facingRight = false;
 
@@ -144,6 +157,10 @@ public class Player {
             walkStepTimer = 0f;
         }
 
+        // Apply knockback motion
+        updateKnockback(delta, world);
+
+        // Update animation
         updateAnimation(delta, moving);
     }
 
@@ -168,6 +185,11 @@ public class Player {
 
     // --- Animation of player ---
     private void updateAnimation(float delta, boolean moving) {
+        if(hitFlashTimer > 0) {
+            currentFrame = frames[9];
+            if ((facingRight && currentFrame.isFlipX()) || (!facingRight && !currentFrame.isFlipX())) currentFrame.flip(true, false);
+            return;
+        }
         animationTimer += delta;
         if (isDashing) {
             dashAnimTimer += delta;
@@ -225,6 +247,41 @@ public class Player {
     // --- Boosts ---
     public void boostSpeed(float time, float multiplier){ speedBoostTimer = time; speedMultiplier = multiplier; }
     public void boostDamage(float time, float multiplier){ damageBoostTimer = time; damageMultiplier = multiplier; }
+
+    private void updateKnockback(float delta, GameWorld world) {
+        if (knockbackX == 0 && knockbackY == 0) return;
+
+        float nextX = x + knockbackX * delta;
+        float nextY = y + knockbackY * delta;
+
+        if (!isBlocked(nextX, y, world)) x = nextX;
+        else knockbackX = 0;
+
+        if (!isBlocked(x, nextY, world)) y = nextY;
+        else knockbackY = 0;
+
+        knockbackX = approachZero(knockbackX, knockbackDecay * delta);
+        knockbackY = approachZero(knockbackY, knockbackDecay * delta);
+    }
+
+    private float approachZero(float value, float amount) {
+        if (value > 0) {
+            value -= amount;
+            if (value < 0) value = 0;
+        } else if (value < 0) {
+            value += amount;
+            if (value > 0) value = 0;
+        }
+        return value;
+    }
+
+    public void applyKnockBack(float dirX, float dirY, float strength) {
+        float len = (float) Math.sqrt(dirX * dirX + dirY * dirY);
+        if (len == 0) return;
+        knockbackX = (dirX / len) * strength;
+        knockbackY = (dirY / len) * strength;
+        hitFlashTimer = hitFlashDuration;
+    }
 
     // Draw sword
     private void drawSword(SpriteBatch batch, TextureRegion swordFrame) {

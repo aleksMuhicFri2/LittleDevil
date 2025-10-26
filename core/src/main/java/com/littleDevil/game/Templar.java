@@ -1,5 +1,8 @@
 package com.littleDevil.game;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Sound;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -21,11 +24,11 @@ public class Templar extends Enemy {
     private TemplarState state = TemplarState.CHASING;
     private float stateTimer = 0f;
 
-    private final float ATTACK_RANGE = 35f;
-    private final float CHANNEL_TIME = 0.75f;
-    private final float BASH_DURATION = 0.35f;
+    private final float ATTACK_RANGE = 40f;
+    private final float CHANNEL_TIME = 0.7f;
+    private final float BASH_DURATION = 0.4f;
     private final float BASH_SPEED = moveSpeed * 6f;
-    private final float BASH_COOLDOWN = 2f;
+    private final float BASH_COOLDOWN = 3f;
     private float bashCooldownTimer = 0f;
     private final float POST_HIT_PAUSE = 1f;
 
@@ -35,9 +38,16 @@ public class Templar extends Enemy {
     private boolean facingLeft = false;
     private boolean recentFacing;
 
+    private float shieldHitWidth = 20f;
+    private float shieldHitHeight = 20f;
+    private boolean hitPlayerThisBash = false;
+
+    private final Sound bashSound;
+
     public Templar(float x, float y, GameWorld world) {
         super(x, y, "Spritesheets/templarSpritesheet.png", world);
         shieldSpritesheet = new Texture("Spritesheets/shieldSpritesheet.png");
+        bashSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/shieldBash.mp3"));
 
         height = 32f;
         width = 32f;
@@ -64,6 +74,8 @@ public class Templar extends Enemy {
     public void update(float delta, Player player, GameWorld gameWorld, GameScreen gameScreen) {
         if (!isAlive) return;
         if (bashCooldownTimer > 0) bashCooldownTimer -= delta;
+
+        checkBashHit(player, gameScreen);
 
         stateTimer -= delta;
 
@@ -116,6 +128,7 @@ public class Templar extends Enemy {
 
             case POST_HIT_PAUSE -> {
                 currentShieldFrame = shieldFrames[0];
+                hitPlayerThisBash = false;
                 if (stateTimer <= 0f) {
                     state = TemplarState.CHASING;
                 }
@@ -126,6 +139,62 @@ public class Templar extends Enemy {
         applyKnockback(delta, gameWorld);
         handleAttack(player, gameScreen);
         updateAnimation(delta, player);
+    }
+
+    @Override
+    public void handleAttack(Player player, GameScreen gameScreen) {
+        if (!player.isAttacking) hitThisAttack = false;
+        if (player.isAttacking && !hitThisAttack) {
+            float dx = x - player.x;
+            float dy = y - player.y;
+            float distance = (float) Math.sqrt(dx * dx + dy * dy);
+            if (distance <= player.range) {
+                dx /= distance;
+                dy /= distance;
+                float dot = player.attackDirX * dx + player.attackDirY * dy;
+                if (dot > 0.3f) {
+                    hitFlashTime = hitFlashDuration;
+                    hitThisAttack = true;
+                    if(state != TemplarState.CHANNELING && state != TemplarState.BASHING) {
+                        applyHitKnockback(dx, dy);
+                    }
+                    playHitSound();
+                    gameScreen.triggerTimePause(0.1f, 0.15f);
+                }
+            }
+        }
+    }
+
+    private void checkBashHit(Player player, GameScreen gameScreen) {
+        if (state != TemplarState.BASHING || hitPlayerThisBash) return;
+
+        float offsetX = recentFacing ? -5f : 5f;
+
+        // Center of the shield sprite (like in renderShield)
+        float centerX = x + offsetX;
+        float centerY = y;
+
+        // Axis-aligned rectangle, same as renderShieldHitbox
+        float hitboxX = centerX - shieldHitWidth / 2f;
+        float hitboxY = centerY - shieldHitHeight / 2f;
+
+        float playerLeft = player.x;
+        float playerRight = player.x + player.hitBoxWidth;
+        float playerBottom = player.y;
+        float playerTop = player.y + player.hitBoxHeight;
+
+        boolean overlapX = playerRight > hitboxX && playerLeft < hitboxX + shieldHitWidth;
+        boolean overlapY = playerTop > hitboxY && playerBottom < hitboxY + shieldHitHeight;
+
+        if (overlapX && overlapY) {
+            hitPlayerThisBash = true;
+            bashSound.play(0.2f);
+            gameScreen.triggerTimePause(0.2f, 0.2f);
+
+            float dx = player.x - x;
+            float dy = player.y - y;
+            player.applyKnockBack(dx, dy, 140f);
+        }
     }
 
     public void updateAnimation(float delta, Player player) {
@@ -193,6 +262,23 @@ public class Templar extends Enemy {
             1.1f * scaleY,
             rotation
         );
+    }
+
+    public void renderShieldHitbox(SpriteBatch batch, Texture pixel) {
+        if (state != TemplarState.BASHING) return; // only show during bash if you want
+        float offsetX = recentFacing ? -3f : 3f;
+
+        // Center of the shield sprite (like in renderShield)
+        float centerX = x + offsetX;
+        float centerY = y;
+
+        // We'll draw an axis-aligned rectangle for debugging (ignoring rotation for simplicity)
+        float hitboxX = centerX - shieldHitWidth / 2f;
+        float hitboxY = centerY - shieldHitHeight / 2f;
+
+        batch.setColor(1f, 1f, 0f, 0.3f);
+        batch.draw(pixel, hitboxX, hitboxY, shieldHitWidth, shieldHitHeight);
+        batch.setColor(Color.WHITE);
     }
 
 }

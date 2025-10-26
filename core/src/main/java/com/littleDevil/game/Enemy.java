@@ -182,7 +182,7 @@ public abstract class Enemy {
                     hitThisAttack = true;
                     applyHitKnockback(dx, dy);
                     playHitSound();
-                    gameScreen.triggerTimePause();
+                    gameScreen.triggerTimePause(0.1f, 0.15f);
                 }
             }
         }

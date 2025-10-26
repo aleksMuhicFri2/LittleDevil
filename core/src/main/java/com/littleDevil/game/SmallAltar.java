@@ -64,7 +64,7 @@ public class SmallAltar {
         // --- Phase 2: Active cycling (frames 4–8) ---
         else if (cycling) {
             if (!boostSpawned) {
-                boost = new Boost(Boost.Type.SPEED, x + 14, y + 26, new Texture("movementBoost.png"));
+                boost = new Boost(Boost.Type.SPEED, x + 14, y + 26, new Texture("MapAssets/movementBoost.png"));
                 boostSpawned = true;
             }
 

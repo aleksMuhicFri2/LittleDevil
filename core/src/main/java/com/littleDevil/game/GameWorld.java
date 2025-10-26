@@ -39,6 +39,9 @@ public class GameWorld {
 
     public enum TileType { BLOCK, STAIRS, ALTAR, BOOST }
 
+    public float score = 0f;
+    public int wave = 1;
+
     public GameWorld(int mapWidth, int mapHeight, int tileSize) {
         this.mapWidth = mapWidth;
         this.mapHeight = mapHeight;
@@ -156,6 +159,7 @@ public class GameWorld {
         renderList.clear();
 
         renderDebug(false, batch);
+
         for (Enemy e : enemies) {
             if (e instanceof Templar templar) {
                 templar.renderShield(batch, player);
@@ -201,6 +205,9 @@ public class GameWorld {
             e.renderPath(batch, pixel, this);
             e.renderCollisionBox(batch, pixel);
             e.renderHitbox(batch, pixel);
+            if(e instanceof Templar) {
+                ((Templar) e).renderShieldHitbox(batch, pixel);
+            }
         }
         // Render collision grid
         batch.setColor(1f, 0f, 0f, 0.3f); // red semi-transparent
@@ -212,6 +219,14 @@ public class GameWorld {
             }
         }
         batch.setColor(1f, 1f, 1f, 1f); // reset color
+    }
+
+    public int getScore() {
+        return (int)score;
+    }
+
+    public int getWave() {
+        return (int)wave;
     }
 
     public void dispose() {

@@ -98,9 +98,9 @@ public class StartScreen implements Screen {
         camera.position.set(VIRTUAL_WIDTH / 2f, VIRTUAL_HEIGHT / 2f, 0);
 
         // Load textures
-        backgroundTexture = new Texture("background.jpg");
-        titleTexture = new Texture("title.png");
-        playButtonTexture = new Texture("playButton.png");
+        backgroundTexture = new Texture("IntroUI/background.jpg");
+        titleTexture = new Texture("IntroUI/title.png");
+        playButtonTexture = new Texture("IntroUI/playButton.png");
         candleSheet = new Texture("Spritesheets/candleSpritesheet.png");
         particleSheet = new Texture("Spritesheets/particlesSpritesheet.png");
 
