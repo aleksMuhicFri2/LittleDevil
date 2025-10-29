@@ -20,8 +20,10 @@ public class Player {
     public float baseSpeed = 60f, speed = baseSpeed;
     private float speedMultiplier = 1f, speedBoostTimer = 0f;
     private float baseAttackSpeed = 0.5f, attackSpeed = baseAttackSpeed, attackCooldownTimer = 0f;
-    private float baseDamage = 60f, damage = baseDamage, damageMultiplier = 1f, damageBoostTimer = 0f;
+    public float baseDamage = 60f, damage = baseDamage, damageMultiplier = 1f, damageBoostTimer = 0f;
     private float baseLifesteal = 0f, lifesteal = baseLifesteal, lifestealMultiplier = 1f, lifestealBoostTimer = 0f;
+    public float luck = 0.01f;
+    public float critChance = luck, critMultiplier = 1.5f;
 
     public float baseEnergy = 100f, currentEnergy = baseEnergy;
 
@@ -119,7 +121,7 @@ public class Player {
             performDash(moveX, moveY);
 
         // Attack
-        if (!isDashing && !isAttacking && attackCooldownTimer <= 0 && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT))
+        if (!isDashing && !isAttacking && !isOnStairs(world) && attackCooldownTimer <= 0 && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT))
             performAttack();
 
         // Apply movement

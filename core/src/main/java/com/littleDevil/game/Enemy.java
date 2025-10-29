@@ -13,6 +13,8 @@ public abstract class Enemy {
 
     public float x, y;
     public float width = 32f, height = 32f;
+    public float HP = 100;
+    public float damage = 30;
     protected float moveSpeed = 30f;
 
     // Collision
@@ -62,7 +64,7 @@ public abstract class Enemy {
         applySeparationForce(gameWorld);
         applyKnockback(delta, gameWorld);
         followPath(gameWorld, delta);
-        handleAttack(player, gameScreen);
+        handleAttack(player, gameScreen, gameWorld);
     }
 
     // Updates the path for enemies or reduces time until its updated
@@ -167,7 +169,7 @@ public abstract class Enemy {
         }
     }
 
-    protected void handleAttack(Player player, GameScreen gameScreen) {
+    protected void handleAttack(Player player, GameScreen gameScreen, GameWorld gameWorld) {
         if (!player.isAttacking) hitThisAttack = false;
         if (player.isAttacking && !hitThisAttack) {
             float dx = x - player.x;

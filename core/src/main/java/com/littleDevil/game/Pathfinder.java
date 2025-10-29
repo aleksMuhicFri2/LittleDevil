@@ -6,6 +6,7 @@ public class Pathfinder {
 
     private GameWorld world;
     private boolean[][] currentGrid; // cached grid used for the current pathfinding run
+    private static final int RANDOM_ATTEMPTS = 1; // tries before giving up
 
     public Pathfinder(GameWorld world) {
         this.world = world;
@@ -24,6 +25,26 @@ public class Pathfinder {
         goalX = clamp(goalX, 0, currentGrid[0].length - 1);
         goalY = clamp(goalY, 2, currentGrid.length - 3); // do not touch this, it's a little buggy
 
+        List<Node> path = runAStar(startX, startY, goalX, goalY);
+
+        // If no path found, try a random wander target
+        if (path.isEmpty()) {
+            Random rand = new Random();
+            for (int i = 0; i < RANDOM_ATTEMPTS; i++) {
+                int randX = rand.nextInt(currentGrid[0].length);
+                int randY = rand.nextInt(currentGrid.length);
+                if (!isBlocked(randX, randY, 1)) {
+                    path = runAStar(startX, startY, randX, randY);
+                    if (!path.isEmpty()) break;
+                }
+            }
+        }
+
+        return path;
+    }
+
+    // Extracted A* core so we can reuse it
+    private List<Node> runAStar(int startX, int startY, int goalX, int goalY) {
         Node start = new Node(startX, startY);
         Node goal = new Node(goalX, goalY);
 
@@ -72,7 +93,6 @@ public class Pathfinder {
     }
 
     private boolean isBlocked(int tileX, int tileY, int offset) {
-        // Make sure offset checks never go outside world boundaries
         int minY = Math.max(tileY - offset, 0);
         int maxY = Math.min(tileY + offset, currentGrid.length - 1);
         int minX = Math.max(tileX - offset, 0);

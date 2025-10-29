@@ -1,9 +1,12 @@
 package com.littleDevil.game;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,9 +42,12 @@ public class GameWorld {
 
     public enum TileType { BLOCK, STAIRS, ALTAR, BOOST, BLOCKENEMY }
 
+    public ArrayList<DamageText> damageTexts = new ArrayList<>();
+    public BitmapFont damageFont;
+
     public float score = 0f;
     public int wave = 1;
-    public int combo = 1;
+    public int combo = 0;
 
     public GameWorld(int mapWidth, int mapHeight, int tileSize) {
         this.mapWidth = mapWidth;
@@ -60,14 +66,12 @@ public class GameWorld {
 
         // Enemies
         enemies = new ArrayList<>();
-        enemies = new ArrayList<>();
         enemies.add(new Templar(250, 140, this));
-        //enemies.add(new Templar(270, 140, this));
-        //enemies.add(new Templar(290, 140, this));
-        //enemies.add(new Templar(310, 140, this));
-        //enemies.add(new Templar(330, 140, this));
-        //enemies.add(new Templar(350, 140, this));
-
+        enemies.add(new Templar(270, 140, this));
+        enemies.add(new Templar(290, 140, this));
+        enemies.add(new Templar(310, 140, this));
+        enemies.add(new Templar(330, 140, this));
+        enemies.add(new Templar(350, 140, this));
 
         // Altars
         bigAltar = new BigAltar(262, 200, "Spritesheets/bigAltarSpritesheet.png");
@@ -95,6 +99,14 @@ public class GameWorld {
         addObject(smallAltarBotLeft.interactionBox);
 
         generateCollisionGrid();
+
+        // --- DAMAGE FONT ---
+        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
+        FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
+        param.size = (int)(Gdx.graphics.getHeight() * 0.02f); // scale relative to screen
+        param.color = Color.WHITE;
+        damageFont = generator.generateFont(param);
+        generator.dispose();
     }
 
     // update all the logic
@@ -114,6 +126,13 @@ public class GameWorld {
         smallAltarTopRight.update(delta, player, this);
         smallAltarBotRight.update(delta, player, this);
         smallAltarBotLeft.update(delta, player, this);
+
+        // Update damage texts
+        for (int i = damageTexts.size() - 1; i >= 0; i--) {
+            DamageText dt = damageTexts.get(i);
+            dt.update(delta);
+            if (dt.finished) damageTexts.remove(i);
+        }
     }
 
     public void render(SpriteBatch batch) {
@@ -159,13 +178,17 @@ public class GameWorld {
 
         renderList.clear();
 
-        renderDebug(true, batch);
+        renderDebug(false, batch);
 
         for (Enemy e : enemies) {
             if (e instanceof Templar templar) {
                 templar.renderShield(batch, player);
             }
         }
+
+        // render damage texts
+        for (DamageText dt : damageTexts) dt.render(batch);
+
     }
 
     // Adds a CollisionObject to the objects array of the GameWorld
@@ -235,6 +258,12 @@ public class GameWorld {
     public int getCombo() {
         return combo;
     }
+
+    public void spawnDamage(float x, float y, int amount, Color color, float scale) {
+        damageTexts.add(new DamageText(x, y, String.valueOf(amount), 0.7f, damageFont, color, scale));
+    }
+
+
 
     public void dispose() {
         mapTexture.dispose();

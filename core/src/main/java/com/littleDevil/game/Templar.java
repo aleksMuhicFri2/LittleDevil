@@ -137,12 +137,12 @@ public class Templar extends Enemy {
 
         applySeparationForce(gameWorld);
         applyKnockback(delta, gameWorld);
-        handleAttack(player, gameScreen);
+        handleAttack(player, gameScreen, gameWorld);
         updateAnimation(delta, player);
     }
 
     @Override
-    public void handleAttack(Player player, GameScreen gameScreen) {
+    public void handleAttack(Player player, GameScreen gameScreen, GameWorld gameWorld) {
         if (!player.isAttacking) hitThisAttack = false;
         if (player.isAttacking && !hitThisAttack) {
             float dx = x - player.x;
@@ -155,14 +155,48 @@ public class Templar extends Enemy {
                 if (dot > 0.3f) {
                     hitFlashTime = hitFlashDuration;
                     hitThisAttack = true;
-                    if(state != TemplarState.CHANNELING && state != TemplarState.BASHING) {
-                        applyHitKnockback(dx, dy);
-                    }
-                    playHitSound();
-                    gameScreen.triggerTimePause(0.1f, 0.15f);
+                    boolean applyKnockbackFlag = state != TemplarState.CHANNELING && state != TemplarState.BASHING;
+                    templarHit(dx, dy, applyKnockbackFlag, 0.1f, 0.15f, player, gameScreen, gameWorld);
                 }
             }
         }
+    }
+
+    private void templarHit(float dx, float dy, boolean applyKnockback, float freezeDuration, float cameraShakeDuration, Player player, GameScreen gameScreen, GameWorld gameWorld) {
+        if (applyKnockback) applyHitKnockback(dx, dy);
+
+        playHitSound();
+        gameScreen.triggerTimePause(freezeDuration, cameraShakeDuration);
+
+        // Determine damage multiplier and color
+        float damageMultiplier = player.damageMultiplier;
+
+        boolean playerHitsFront = recentFacing ? player.x < x : player.x > x;
+
+        // Critical hit check first
+        boolean crit = Math.random() <= player.critChance;
+        Color textColor = new Color(1f, 0f, 0f, 1f); // default red
+        float scale;
+
+        if (playerHitsFront) {
+            damageMultiplier *= 0.5f;
+            textColor.set(0.7f, 0.7f, 1f, 1f); // gray-blue
+            scale = 0.9f;
+        } else {
+            damageMultiplier *= 1.5f;
+            textColor.set(1f, 0f, 0f, 1f); // red
+            scale = 1.1f;
+        }
+        if (crit) {
+            damageMultiplier *= player.critMultiplier;
+            textColor.set(1f, 0.3f, 0f, 1f); // orange
+            scale = 1.3f;
+        }
+
+        int damage = (int)(player.damage * damageMultiplier);
+        gameWorld.spawnDamage(x, y + height / 1.5f, damage, textColor, scale);
+        HP -= damage;
+        // TODO checkDeath();
     }
 
     private void checkBashHit(Player player, GameScreen gameScreen) {

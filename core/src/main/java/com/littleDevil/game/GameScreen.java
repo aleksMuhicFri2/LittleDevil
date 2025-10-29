@@ -85,7 +85,7 @@ public class GameScreen implements Screen {
 
         // --- Combo font ---
         param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
-        param.color = new Color(1f, 0.5f, 0f, 1f); // orange
+        param.color = new Color(1f, 0.1f, 0f, 1f); // orange
         comboFont = generator.generateFont(param);
 
         generator.dispose();
