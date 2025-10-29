@@ -8,6 +8,8 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 
+import java.util.Random;
+
 public class Templar extends Enemy {
 
     private Texture shieldSpritesheet;
@@ -64,6 +66,10 @@ public class Templar extends Enemy {
         hitboxOffsetY = -16;
         hitboxWidth = 24;
         hitboxHeight = 20;
+
+        guaranteedOrbsCounts = new float[] {3f, 0f, 0f};
+        firstExtraChances = new float[] {0.5f, 0.4f, 0.05f};
+        orbProbabilityDecays = new float[] {0.3f, 0.2f, 0.1f};
 
         templarFrames = new TextureRegion[4];
         for (int i = 0; i < 4; i++) templarFrames[i] = new TextureRegion(spriteSheet, i * 32, 0, 32, 32);
@@ -200,23 +206,23 @@ public class Templar extends Enemy {
         // If player hits shield
         if (playerHitsFront) {
             damageMultiplier *= 0.7f;
-            textColor.set(0.7f, 0.7f, 1f, 1f);
-            scale = 0.9f;
+            textColor.set(0.8f, 0.8f, 1f, 1f);
+            scale = 1f;
         } else { // If player hits from the back
             damageMultiplier *= 1.3f;
             textColor.set(1f, 0f, 0f, 1f);
-            scale = 1.1f;
+            scale = 1.15f;
         }
         if (crit) { // Additional damage on crit
             damageMultiplier *= player.critMultiplier;
-            textColor.set(1f, 0.3f, 0f, 1f);
+            textColor.set(1f, 0.4f, 0.2f, 1f);
             scale = 1.3f;
         }
 
         int damage = (int)(player.damage * damageMultiplier);
         gameWorld.spawnDamage(x, y + height / 1.5f, damage, textColor, scale);
         HP -= damage;
-        if (HP <= 0 && isAlive) die();
+        if (HP <= 0 && isAlive) die(gameWorld, player);
     }
 
     // Handles event when templar hits player with shield
@@ -322,7 +328,7 @@ public class Templar extends Enemy {
     }
 
     // Function that handles templar death and removal from scene
-    private void die() {
+    private void die(GameWorld gameWorld, Player player) {
         if (!isAlive) return;
         isAlive = false;
 
@@ -331,5 +337,42 @@ public class Templar extends Enemy {
 
         helmetY = y;
         helmetVelocity = 10f;
+        spawnOrbs(gameWorld, player);
+    }
+
+    public void spawnOrbs(GameWorld gameWorld, Player player) {
+        Texture orbSheet = new Texture("Spritesheets/xpOrbs.png");
+        Random rand = new Random();
+
+        // Angle from enemy to player
+        float angleToPlayer = (float) Math.atan2(player.y - y, player.x - x);
+
+        // Back direction (opposite the player)
+        float backAngle = angleToPlayer + (float)Math.PI;
+
+        int guaranteed = (int) guaranteedOrbsCounts[0];
+        for (int i = 0; i < guaranteed; i++) {
+            Orb.OrbType type = Orb.OrbType.COMMON;
+
+            // Random angle within 90° behind enemy
+            float offset = ((rand.nextFloat() - 0.5f) * (float)Math.PI); // -45° to +45°
+            float angle = backAngle + offset;
+
+            float speed = 65f + rand.nextFloat() * 20f;
+            Vector2 initialVelocity = new Vector2((float)Math.cos(angle) * speed, (float)Math.sin(angle) * speed);
+
+            gameWorld.orbs.add(new Orb(x, y, type, orbSheet, initialVelocity));
+        }
+
+        for (int i = 0; i < firstExtraChances.length; i++) {
+            if (rand.nextFloat() < firstExtraChances[i]) {
+                Orb.OrbType type = i == 0 ? Orb.OrbType.COMMON : i == 1 ? Orb.OrbType.RARE : Orb.OrbType.GOLD;
+                float offset = ((rand.nextFloat() - 0.5f) * (float)Math.PI); // -45° to +45°
+                float angle = backAngle + offset;
+                float speed = 100f + rand.nextFloat() * 30f;
+                Vector2 initialVelocity = new Vector2((float)Math.cos(angle) * speed, (float)Math.sin(angle) * speed);
+                gameWorld.orbs.add(new Orb(x, y, type, orbSheet, initialVelocity));
+            }
+        }
     }
 }

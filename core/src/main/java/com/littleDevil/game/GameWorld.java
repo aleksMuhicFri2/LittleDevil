@@ -49,6 +49,8 @@ public class GameWorld {
     // For easier removing from the scene
     private final List<Enemy> enemiesToRemove = new ArrayList<>();
 
+    public List<Orb> orbs = new ArrayList<>();
+
     // Public UI info to be displayed on screen
     public float score = 0f;
     public int wave = 1;
@@ -73,7 +75,7 @@ public class GameWorld {
         // Enemies
         enemies = new ArrayList<>();
         enemies.add(new Templar(250, 140, this));
-        //enemies.add(new Templar(270, 140, this));
+        enemies.add(new Templar(270, 140, this));
         //enemies.add(new Templar(290, 140, this));
         //enemies.add(new Templar(310, 140, this));
         //enemies.add(new Templar(330, 140, this));
@@ -110,7 +112,7 @@ public class GameWorld {
         // Damage Font init - white so we can customize it later (Tint)
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
-        param.size = (int)(Gdx.graphics.getHeight() * 0.025f); // scale relative to screen
+        param.size = (int)(Gdx.graphics.getHeight() * 0.022f); // scale relative to screen
         param.color = Color.WHITE;
         damageFont = generator.generateFont(param);
         generator.dispose();
@@ -144,6 +146,12 @@ public class GameWorld {
             DamageText dt = damageTexts.get(i);
             dt.update(delta);
             if (dt.finished) damageTexts.remove(i);
+        }
+
+        for (int i = orbs.size() - 1; i >= 0; i--) {
+            Orb orb = orbs.get(i);
+            orb.update(delta, player, this);
+            if (!orb.isAlive()) orbs.remove(i);
         }
     }
 
@@ -205,7 +213,9 @@ public class GameWorld {
 
         // render damage texts
         for (DamageText dt : damageTexts) dt.render(batch);
-
+        for (Orb orb : orbs) {
+            orb.render(batch);
+        }
     }
 
     // Adds a CollisionObject to the objects array of the GameWorld

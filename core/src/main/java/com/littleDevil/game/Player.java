@@ -24,6 +24,7 @@ public class Player {
     private float baseLifesteal = 0f, lifesteal = baseLifesteal, lifestealMultiplier = 1f, lifestealBoostTimer = 0f;
     public float luck = 0.01f;
     public float critChance = luck, critMultiplier = 1.5f;
+    public float currentXp = 0f; public float neededXp = 15f;
 
     public float baseEnergy = 100f, currentEnergy = baseEnergy;
 
@@ -249,6 +250,10 @@ public class Player {
     // --- Boosts ---
     public void boostSpeed(float time, float multiplier){ speedBoostTimer = time; speedMultiplier = multiplier; }
     public void boostDamage(float time, float multiplier){ damageBoostTimer = time; damageMultiplier = multiplier; }
+
+    public void addXP(float value) {
+        currentXp += value;
+    }
 
     private void updateKnockback(float delta, GameWorld world) {
         if (knockbackX == 0 && knockbackY == 0) return;

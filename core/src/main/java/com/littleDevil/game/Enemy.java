@@ -20,6 +20,10 @@ public abstract class Enemy {
     protected float moveSpeed = 30f;
     protected float intelligence = 3f;
 
+    protected float[] guaranteedOrbsCounts = new float[3];
+    protected float[] firstExtraChances =  new float[3];
+    protected float[] orbProbabilityDecays =  new float[3];
+
     // Applied on death
     public float alpha = 1f;
 
