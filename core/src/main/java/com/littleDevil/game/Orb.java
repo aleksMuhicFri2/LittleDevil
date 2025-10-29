@@ -20,8 +20,8 @@ public class Orb {
     public OrbType type;
     public boolean isPulled = false;
 
-    private final float PULL_RADIUS = 20f;
-    private final float PULL_SPEED = 15f;
+    private final float PULL_RADIUS = 18f;
+    private final float PULL_SPEED = 12f;
     private final float MAX_PULL_SPEED = 250f;
     private final float MAX_RANGE;
     private final float ORB_SPEED;
