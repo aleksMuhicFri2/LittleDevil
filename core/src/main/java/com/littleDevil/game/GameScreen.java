@@ -14,29 +14,31 @@ public class GameScreen implements Screen {
 
     private final Main game;
 
-    // Rendering
+    // white pixel texture
+    private Texture pixel;
+
+    // Game Cameras
     private SpriteBatch batch;
     private OrthographicCamera camera;
     private ExtendViewport viewport;
 
+    // UI Cameras
     private OrthographicCamera UICamera;
     private ExtendViewport UIViewport;
-
-    // white pixel texture
-    private Texture pixel;
 
     // UI
     private Texture playerUI;
     private Texture wavePanel;
+
+    // Game world
+    private GameWorld gameWorld;
 
     // Mouse tracking
     private final Vector2 mouseWorldPos = new Vector2();
     private final Vector2 mouseDir = new Vector2();
     public static float mouseAngle = 0f;
 
-    // Game world
-    private GameWorld gameWorld;
-
+    // Dark Overlay
     private Texture darknessTexture;
     private float darknessAlpha = 0.55f;
 
@@ -48,6 +50,7 @@ public class GameScreen implements Screen {
     private BitmapFont comboFont;
     private GlyphLayout comboLayout;
 
+    // Music
     private Music backgroundMusic;
 
     // Camera shake / pause
@@ -72,42 +75,47 @@ public class GameScreen implements Screen {
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
 
-        // --- Score font ---
+        // Score font
         param.size = (int)(Gdx.graphics.getHeight() * 0.06f);
         param.color = new Color(0.85f, 0.85f, 0.85f, 0.5f);
         scoreFont = generator.generateFont(param);
 
-        // --- Wave font ---
+        // Wave font
         param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
         param.color = new Color(0f, 0f, 0f, 1f);
-        param.borderWidth = 0.5f;
+        param.borderWidth = 0.5f; // a bit of boldness
         waveFont = generator.generateFont(param);
 
-        // --- Combo font ---
+        // Combo font
         param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
         param.color = new Color(1f, 0.1f, 0f, 1f); // orange
         comboFont = generator.generateFont(param);
 
         generator.dispose();
 
+        // Defining layouts
         scoreLayout = new GlyphLayout();
         waveLayout = new GlyphLayout();
         comboLayout = new GlyphLayout();
 
+        // Defining music properties
         backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("Sounds/gameBackgroundMusic.mp3"));
         backgroundMusic.setLooping(true);
         backgroundMusic.setVolume(0.1f);
         backgroundMusic.play();
 
+        // Game world init
         gameWorld = new GameWorld(600, 400, 4);
         gameWorld.initialize();
 
+        // Defining Texture for Darkness Overlay
         Pixmap pix = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pix.setColor(0f, 0f, 0f, 1f);
         pix.fill();
         darknessTexture = new Texture(pix);
         pix.dispose();
 
+        // Cameras init
         camera = new OrthographicCamera();
         viewport = new ExtendViewport(gameWorld.mapWidth / 2f, gameWorld.mapHeight / 2f, camera);
         viewport.apply();
@@ -136,11 +144,13 @@ public class GameScreen implements Screen {
         batch.begin();
         gameWorld.render(batch);
 
+        // Additive blending for lights
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         batch.setColor(1f, 1f, 1f, darknessAlpha);
         batch.draw(darknessTexture, 0, 0, gameWorld.mapWidth, gameWorld.mapHeight);
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
 
+        // Rendering all the lights from separate file
         for (Light light : LightData.lightObjects) {
             float drawX = light.x - light.width / 2f;
             float drawY = light.y - light.height / 2f;
@@ -166,7 +176,7 @@ public class GameScreen implements Screen {
         Player player = gameWorld.player;
         if (player == null) return;
 
-        float lerp = 5f * delta;
+        float lerp = 3f * delta; // lerp for faster or slower player tracking
         float targetX = player.x;
         float targetY = player.y;
 
@@ -206,6 +216,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // Function that balances scale of UI when resizing
     private float getScale(float maxScale) {
         float referenceWidth = 1920f;
         float referenceHeight = 1080f;
@@ -216,6 +227,7 @@ public class GameScreen implements Screen {
         return Math.min(scale * 8f, maxScale);
     }
 
+    // Draws WavePanel
     private void drawWavePanelUI() {
         float baseWidth = 64f;
         float baseHeight = 64f;
@@ -227,6 +239,24 @@ public class GameScreen implements Screen {
         batch.draw(wavePanel, uiX, uiY, uiWidth, uiHeight);
     }
 
+    private void drawWaveUI() {
+        String label = "Wave";
+        String value = String.valueOf(gameWorld.getWave());
+
+        waveLayout.setText(waveFont, label);
+        float labelWidth = waveLayout.width;
+        waveLayout.setText(waveFont, value);
+        float valueWidth = waveLayout.width;
+
+        float totalWidth = labelWidth + 10f + valueWidth;
+        float startX = (UIViewport.getWorldWidth() - totalWidth) / 2f;
+        float y = UIViewport.getWorldHeight() - 43f;
+
+        waveFont.draw(batch, label, startX, y);
+        waveFont.draw(batch, value, startX + labelWidth + 10f, y);
+    }
+
+    // Draws Player UI
     private void drawPlayerUI() {
         float baseWidth = 112f;
         float baseHeight = 32f;
@@ -238,6 +268,7 @@ public class GameScreen implements Screen {
         batch.draw(playerUI, uiX, uiY, uiWidth, uiHeight);
     }
 
+    // Draws Score UI
     private void drawScoreUI() {
         String label = "Score:";
         String value = String.valueOf(gameWorld.getScore());
@@ -253,6 +284,7 @@ public class GameScreen implements Screen {
         scoreFont.draw(batch, value, numberX, y);
     }
 
+    // Draws Combo UI
     private void drawComboUI() {
         int combo = gameWorld.getCombo();
         if (combo <= 0) return; // don't display zero combos
@@ -271,21 +303,17 @@ public class GameScreen implements Screen {
         comboFont.draw(batch, value, numberX, y);
     }
 
-    private void drawWaveUI() {
-        String label = "Wave";
-        String value = String.valueOf(gameWorld.getWave());
+    // public functions
+    public static float getMouseAngle() {
+        return mouseAngle;
+    }
 
-        waveLayout.setText(waveFont, label);
-        float labelWidth = waveLayout.width;
-        waveLayout.setText(waveFont, value);
-        float valueWidth = waveLayout.width;
-
-        float totalWidth = labelWidth + 10f + valueWidth;
-        float startX = (UIViewport.getWorldWidth() - totalWidth) / 2f;
-        float y = UIViewport.getWorldHeight() - 43f;
-
-        waveFont.draw(batch, label, startX, y);
-        waveFont.draw(batch, value, startX + labelWidth + 10f, y);
+    public void triggerTimePause(float freezeDuration, float cameraShakeDuration) {
+        if (!timePaused) {
+            timePaused = true;
+            timePauseTimer = freezeDuration;
+            cameraShakeTimer = cameraShakeDuration;
+        }
     }
 
     @Override
@@ -317,17 +345,5 @@ public class GameScreen implements Screen {
         scoreFont.dispose();
         waveFont.dispose();
         comboFont.dispose();
-    }
-
-    public static float getMouseAngle() {
-        return mouseAngle;
-    }
-
-    public void triggerTimePause(float freezeDuration, float cameraShakeDuration) {
-        if (!timePaused) {
-            timePaused = true;
-            timePauseTimer = freezeDuration;
-            cameraShakeTimer = cameraShakeDuration;
-        }
     }
 }

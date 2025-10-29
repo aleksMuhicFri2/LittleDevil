@@ -44,11 +44,17 @@ public class Templar extends Enemy {
 
     private final Sound bashSound;
 
+    private float helmetY;
+    private float helmetVelocity = 0f;
+    private final float GRAVITY = 300f; // tweak for drop speed
+    private final float GROUND_OFFSET = 16f;
+
     public Templar(float x, float y, GameWorld world) {
         super(x, y, "Spritesheets/templarSpritesheet.png", world);
         shieldSpritesheet = new Texture("Spritesheets/shieldSpritesheet.png");
         bashSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/shieldBash.mp3"));
 
+        HP = 200f;
         height = 32f;
         width = 32f;
         moveSpeed = 30f;
@@ -59,95 +65,108 @@ public class Templar extends Enemy {
         hitboxWidth = 24;
         hitboxHeight = 20;
 
-        // Templar frames
-        templarFrames = new TextureRegion[9];
-        for (int i = 0; i < 3; i++) templarFrames[i] = new TextureRegion(spriteSheet, i * 32, 0, 32, 32);
+        templarFrames = new TextureRegion[4];
+        for (int i = 0; i < 4; i++) templarFrames[i] = new TextureRegion(spriteSheet, i * 32, 0, 32, 32);
         currentFrame = templarFrames[0];
 
-        // Shield frames
-        shieldFrames = new TextureRegion[8];
-        for (int i = 0; i < 8; i++) shieldFrames[i] = new TextureRegion(shieldSpritesheet, i * 32, 0, 32, 32);
+        shieldFrames = new TextureRegion[9];
+        for (int i = 0; i < 9; i++) shieldFrames[i] = new TextureRegion(shieldSpritesheet, i * 32, 0, 32, 32);
         currentShieldFrame = shieldFrames[0];
     }
 
     @Override
     public void update(float delta, Player player, GameWorld gameWorld, GameScreen gameScreen) {
-        if (!isAlive) return;
-        if (bashCooldownTimer > 0) bashCooldownTimer -= delta;
+        if(isAlive) { // updates states and animations and positions if alive
+            if (bashCooldownTimer > 0) bashCooldownTimer -= delta;
 
-        checkBashHit(player, gameScreen);
+            checkBashHit(player, gameScreen);
+            stateTimer -= delta;
 
-        stateTimer -= delta;
+            switch (state) {
+                case CHASING -> {
+                    followPath(gameWorld, delta);
+                    currentShieldFrame = shieldFrames[0];
+                    if (distanceToPlayer(player) < ATTACK_RANGE && bashCooldownTimer <= 0f) {
+                        state = TemplarState.CHANNELING;
+                        stateTimer = CHANNEL_TIME;
+                        bashDir.set(player.x - x, player.y - y).nor();
+                    }
+                }
 
-        switch (state) {
-            case CHASING -> {
-                followPath(gameWorld, delta);
-                currentShieldFrame = shieldFrames[0];
-                if (distanceToPlayer(player) < ATTACK_RANGE && bashCooldownTimer <= 0f) {
-                    state = TemplarState.CHANNELING;
-                    stateTimer = CHANNEL_TIME;
-                    bashDir.set(player.x - x, player.y - y).nor();
+                case CHANNELING -> {
+                    float progress = 1f - stateTimer / CHANNEL_TIME;
+                    int frameIndex = Math.min(4, (int)(progress * 5f));
+                    currentShieldFrame = shieldFrames[frameIndex];
+
+                    if (stateTimer <= 0f) {
+                        state = TemplarState.BASHING;
+                        stateTimer = BASH_DURATION;
+                    }
+                }
+
+                case BASHING -> {
+                    float progress = 1f - stateTimer / BASH_DURATION;
+                    float decel = 1f - (progress * progress);
+                    float moveX = bashDir.x * BASH_SPEED * decel * delta;
+                    float moveY = bashDir.y * BASH_SPEED * decel * delta;
+
+                    if (stateTimer <= BASH_DURATION / 2f) {
+                        currentShieldFrame = shieldFrames[5];
+                    } else {
+                        currentShieldFrame = shieldFrames[4];
+                    }
+
+                    moveWithCollision(moveX, moveY, gameWorld);
+
+                    if (stateTimer <= 0f) {
+                        currentShieldFrame = shieldFrames[6];
+                        bashCooldownTimer = BASH_COOLDOWN;
+                        state = TemplarState.POST_HIT_PAUSE;
+                        stateTimer = POST_HIT_PAUSE;
+                    }
+                }
+
+                case POST_HIT_PAUSE -> {
+                    currentShieldFrame = shieldFrames[0];
+                    hitPlayerThisBash = false;
+                    if (stateTimer <= 0f) state = TemplarState.CHASING;
                 }
             }
+            applySeparationForce(gameWorld);
+            applyKnockback(delta, gameWorld);
+            handleAttack(player, gameScreen, gameWorld);
+            updateAnimation(delta, player);
 
-            case CHANNELING -> {
-                // Animate shield frames 0 → 4 over CHANNEL_TIME
-                float progress = 1f - stateTimer / CHANNEL_TIME; // 0 → 1
-                int frameIndex = Math.min(4, (int)(progress * 5f));
-                currentShieldFrame = shieldFrames[frameIndex];
+        } else { // moves on to death animation if killed
+            if (helmetY == 0f) helmetY = y;
+            float groundY = helmetY - GROUND_OFFSET; // fixed ground position
 
-                // Stay still
-                if (stateTimer <= 0f) {
-                    state = TemplarState.BASHING;
-                    stateTimer = BASH_DURATION;
-                }
+            // Apply gravity and speed up helmet
+            helmetVelocity += GRAVITY * delta;
+            y -= helmetVelocity * delta; // move down
+
+            // Stop at ground and fade away
+            if (y <= groundY) {
+                y = groundY;
+                helmetVelocity = 0f;
+                alpha -= 0.7f * delta;
             }
 
-            case BASHING -> {
-                float progress = 1f - stateTimer / BASH_DURATION;
-                float decel = 1f - (progress * progress); // quadratic drop
-                float moveX = bashDir.x * BASH_SPEED * decel * delta;
-                float moveY = bashDir.y * BASH_SPEED * decel * delta;
-
-                // Animate hit frames
-                if (stateTimer <= BASH_DURATION / 2f) {
-                    currentShieldFrame = shieldFrames[5];
-                } else {
-                    currentShieldFrame = shieldFrames[4];
-                }
-
-                moveWithCollision(moveX, moveY, gameWorld);
-
-                if (stateTimer <= 0f) {
-                    currentShieldFrame = shieldFrames[6];
-                    bashCooldownTimer = BASH_COOLDOWN;
-                    state = TemplarState.POST_HIT_PAUSE;
-                    stateTimer = POST_HIT_PAUSE;
-                }
-            }
-
-            case POST_HIT_PAUSE -> {
-                currentShieldFrame = shieldFrames[0];
-                hitPlayerThisBash = false;
-                if (stateTimer <= 0f) {
-                    state = TemplarState.CHASING;
-                }
+            if (alpha <= 0f) {
+                alpha = 0f;
+                gameWorld.removeEnemy(this);
             }
         }
-
-        applySeparationForce(gameWorld);
-        applyKnockback(delta, gameWorld);
-        handleAttack(player, gameScreen, gameWorld);
-        updateAnimation(delta, player);
     }
 
+    // Handles what happens when the enemy is hit
     @Override
     public void handleAttack(Player player, GameScreen gameScreen, GameWorld gameWorld) {
         if (!player.isAttacking) hitThisAttack = false;
         if (player.isAttacking && !hitThisAttack) {
             float dx = x - player.x;
             float dy = y - player.y;
-            float distance = (float) Math.sqrt(dx * dx + dy * dy);
+            float distance = (float)Math.sqrt(dx * dx + dy * dy);
             if (distance <= player.range) {
                 dx /= distance;
                 dy /= distance;
@@ -162,53 +181,52 @@ public class Templar extends Enemy {
         }
     }
 
-    private void templarHit(float dx, float dy, boolean applyKnockback, float freezeDuration, float cameraShakeDuration, Player player, GameScreen gameScreen, GameWorld gameWorld) {
+    // Applies damage suffered from player, spawns damageText and handles death if HP <= 0
+    private void templarHit(float dx, float dy, boolean applyKnockback, float freezeDuration, float cameraShakeDuration,
+                            Player player, GameScreen gameScreen, GameWorld gameWorld) {
         if (applyKnockback) applyHitKnockback(dx, dy);
-
         playHitSound();
         gameScreen.triggerTimePause(freezeDuration, cameraShakeDuration);
 
-        // Determine damage multiplier and color
         float damageMultiplier = player.damageMultiplier;
 
+        // gets correct direction of templar
         boolean playerHitsFront = recentFacing ? player.x < x : player.x > x;
 
-        // Critical hit check first
         boolean crit = Math.random() <= player.critChance;
-        Color textColor = new Color(1f, 0f, 0f, 1f); // default red
+        Color textColor = new Color(1f, 0f, 0f, 1f);
         float scale;
 
+        // If player hits shield
         if (playerHitsFront) {
-            damageMultiplier *= 0.5f;
-            textColor.set(0.7f, 0.7f, 1f, 1f); // gray-blue
+            damageMultiplier *= 0.7f;
+            textColor.set(0.7f, 0.7f, 1f, 1f);
             scale = 0.9f;
-        } else {
-            damageMultiplier *= 1.5f;
-            textColor.set(1f, 0f, 0f, 1f); // red
+        } else { // If player hits from the back
+            damageMultiplier *= 1.3f;
+            textColor.set(1f, 0f, 0f, 1f);
             scale = 1.1f;
         }
-        if (crit) {
+        if (crit) { // Additional damage on crit
             damageMultiplier *= player.critMultiplier;
-            textColor.set(1f, 0.3f, 0f, 1f); // orange
+            textColor.set(1f, 0.3f, 0f, 1f);
             scale = 1.3f;
         }
 
         int damage = (int)(player.damage * damageMultiplier);
         gameWorld.spawnDamage(x, y + height / 1.5f, damage, textColor, scale);
         HP -= damage;
-        // TODO checkDeath();
+        if (HP <= 0 && isAlive) die();
     }
 
+    // Handles event when templar hits player with shield
     private void checkBashHit(Player player, GameScreen gameScreen) {
         if (state != TemplarState.BASHING || hitPlayerThisBash) return;
 
         float offsetX = recentFacing ? -5f : 5f;
-
-        // Center of the shield sprite (like in renderShield)
         float centerX = x + offsetX;
         float centerY = y;
 
-        // Axis-aligned rectangle, same as renderShieldHitbox
         float hitboxX = centerX - shieldHitWidth / 2f;
         float hitboxY = centerY - shieldHitHeight / 2f;
 
@@ -231,11 +249,11 @@ public class Templar extends Enemy {
         }
     }
 
+    // Updates Templar animation based on his state and if hit by player
     public void updateAnimation(float delta, Player player) {
-        // Default: idle
+        if(!isAlive) return;
         currentFrame = templarFrames[0];
 
-        // Hurt flash overrides everything
         if (hitFlashTime > 0) {
             currentFrame = templarFrames[2];
             currentShieldFrame = shieldFrames[7];
@@ -243,44 +261,36 @@ public class Templar extends Enemy {
             return;
         }
 
-        // Determine if the templar should face left
         boolean shouldFaceLeft = (player.x + 32 / 2f) < (x + width / 2f);
         if (shouldFaceLeft != facingLeft) {
             facingLeft = shouldFaceLeft;
             for (int i = 0; i <= 2; i++) templarFrames[i].flip(true, false);
         }
 
-        // Walk animation
         if (state == TemplarState.CHASING || state == TemplarState.BASHING) {
-            float frameTime = (float) (Math.sin((System.currentTimeMillis() % 400) / 400f * Math.PI * 2) * 0.5f + 0.5f);
+            float frameTime = (float)(Math.sin((System.currentTimeMillis() % 400) / 400f * Math.PI * 2) * 0.5f + 0.5f);
             currentFrame = frameTime > 0.5f ? templarFrames[1] : templarFrames[0];
         }
     }
 
+    // Function for rendering shield and rotating it based on player
     public void renderShield(SpriteBatch batch, Player player) {
         TextureRegion shieldFrame = currentShieldFrame;
-
-        // Update facing only while chasing
         if (state == TemplarState.CHASING) {
             recentFacing = (player.x + 16f) < (x + width / 2f);
         }
 
-        // Use recent facing for scale and offset in all states
         float scaleY = recentFacing ? -1f : 1f;
         float offsetX = recentFacing ? -3f : 3f;
 
-        // Calculate rotation only when chasing
         float rotation = frozenShieldRotation;
         if (state == TemplarState.CHASING) {
-            rotation = (float) Math.toDegrees(Math.atan2(
+            rotation = (float)Math.toDegrees(Math.atan2(
                 (player.y + 16f) - (y + height / 2f),
                 (player.x + 16f) - (x + width / 2f)
             ));
-
-            // Clamp angle to [-180, 180]
             if (rotation > 180f) rotation -= 360f;
             if (rotation < -180f) rotation += 360f;
-
             frozenShieldRotation = rotation;
         }
 
@@ -299,14 +309,10 @@ public class Templar extends Enemy {
     }
 
     public void renderShieldHitbox(SpriteBatch batch, Texture pixel) {
-        if (state != TemplarState.BASHING) return; // only show during bash if you want
+        if (state != TemplarState.BASHING) return;
         float offsetX = recentFacing ? -3f : 3f;
-
-        // Center of the shield sprite (like in renderShield)
         float centerX = x + offsetX;
         float centerY = y;
-
-        // We'll draw an axis-aligned rectangle for debugging (ignoring rotation for simplicity)
         float hitboxX = centerX - shieldHitWidth / 2f;
         float hitboxY = centerY - shieldHitHeight / 2f;
 
@@ -315,4 +321,15 @@ public class Templar extends Enemy {
         batch.setColor(Color.WHITE);
     }
 
+    // Function that handles templar death and removal from scene
+    private void die() {
+        if (!isAlive) return;
+        isAlive = false;
+
+        currentFrame = templarFrames[3];
+        currentShieldFrame = shieldFrames[8];
+
+        helmetY = y;
+        helmetVelocity = 10f;
+    }
 }

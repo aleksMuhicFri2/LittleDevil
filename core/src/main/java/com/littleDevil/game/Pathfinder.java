@@ -12,10 +12,7 @@ public class Pathfinder {
         this.world = world;
     }
 
-    /**
-     * Finds a path between two points using the specified grid.
-     * The grid can be either the coarse or detailed one (passed by reference).
-     */
+
     public List<Node> findPath(int startX, int startY, int goalX, int goalY) {
         this.currentGrid = world.collisionGrid;
 

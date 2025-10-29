@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.Color;
 
+// Class for displaying damage dealt to enemies
 public class DamageText {
     public float x, y;
     public String text;
@@ -26,6 +27,7 @@ public class DamageText {
         this.scale = scale;
     }
 
+    // Numbers float up and disappear
     public void update(float delta) {
         elapsed += delta;
         y += riseSpeed * delta; // float upward
@@ -35,14 +37,11 @@ public class DamageText {
     public void render(SpriteBatch batch) {
         if (finished) return;
 
-        // Compute alpha
-        float alpha = 1f - (elapsed / lifetime);
-
         // Apply color with fade
+        float alpha = 1f - (elapsed / lifetime);
         font.setColor(color.r, color.g, color.b, alpha);
         font.getData().setScale(scale);
 
-        // Draw text
         font.draw(batch, text, x, y);
     }
 }

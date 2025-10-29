@@ -30,21 +30,26 @@ public class GameWorld {
     public Texture mapTexture;
     private final int[][] grid;
     private final List<CollisionObject> objects = new ArrayList<>();
-
     public boolean[][] collisionGrid;
 
-    // Decorations
+    // Candle Decorations
     private Texture candleSheet;
     Texture pixel = new Texture("whitePixel.png");
 
     // Pathing
-    private final float PATH_UPDATE_INTERVAL = 1f; // 5 updates per second
+    private final float PATH_UPDATE_INTERVAL = 1f; // 1 update per second (BASE)
 
+    // Tile Types
     public enum TileType { BLOCK, STAIRS, ALTAR, BOOST, BLOCKENEMY }
 
+    // Damage Texts
     public ArrayList<DamageText> damageTexts = new ArrayList<>();
     public BitmapFont damageFont;
 
+    // For easier removing from the scene
+    private final List<Enemy> enemiesToRemove = new ArrayList<>();
+
+    // Public UI info to be displayed on screen
     public float score = 0f;
     public int wave = 1;
     public int combo = 0;
@@ -59,6 +64,7 @@ public class GameWorld {
     }
 
     public void initialize() {
+        // Map
         mapTexture = new Texture("MapAssets/map.png");
 
         // Player
@@ -67,11 +73,11 @@ public class GameWorld {
         // Enemies
         enemies = new ArrayList<>();
         enemies.add(new Templar(250, 140, this));
-        enemies.add(new Templar(270, 140, this));
-        enemies.add(new Templar(290, 140, this));
-        enemies.add(new Templar(310, 140, this));
-        enemies.add(new Templar(330, 140, this));
-        enemies.add(new Templar(350, 140, this));
+        //enemies.add(new Templar(270, 140, this));
+        //enemies.add(new Templar(290, 140, this));
+        //enemies.add(new Templar(310, 140, this));
+        //enemies.add(new Templar(330, 140, this));
+        //enemies.add(new Templar(350, 140, this));
 
         // Altars
         bigAltar = new BigAltar(262, 200, "Spritesheets/bigAltarSpritesheet.png");
@@ -98,12 +104,13 @@ public class GameWorld {
         addObject(smallAltarBotRight.interactionBox);
         addObject(smallAltarBotLeft.interactionBox);
 
+        // Generates grid used in Pathfinder Class
         generateCollisionGrid();
 
-        // --- DAMAGE FONT ---
+        // Damage Font init - white so we can customize it later (Tint)
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
-        param.size = (int)(Gdx.graphics.getHeight() * 0.02f); // scale relative to screen
+        param.size = (int)(Gdx.graphics.getHeight() * 0.025f); // scale relative to screen
         param.color = Color.WHITE;
         damageFont = generator.generateFont(param);
         generator.dispose();
@@ -114,11 +121,16 @@ public class GameWorld {
         player.update(delta, this);
 
         // update A* paths when needed = reduce timer
-        for(Enemy e :  enemies) {
-            e.updatePathsForEnemy(delta, player, this, PATH_UPDATE_INTERVAL);
+        for(Enemy enemy :  enemies) {
+            enemy.updatePathsForEnemy(delta, player, this, PATH_UPDATE_INTERVAL);
+            enemy.update(delta, player, this, gameScreen);
         }
 
-        for (Enemy enemy : enemies) enemy.update(delta, player, this, gameScreen);
+        // remove all enemies marked for removal
+        if (!enemiesToRemove.isEmpty()) {
+            enemies.removeAll(enemiesToRemove);
+            enemiesToRemove.clear();
+        }
         for (GameCandle candle : candles) candle.update(delta);
 
         bigAltar.update(delta, player,this);
@@ -160,26 +172,31 @@ public class GameWorld {
                     new TextureRegion(obj.texture),
                     obj.posX, obj.posY,
                     obj.width, obj.height,
-                    obj.posY
+                    obj.posY,
+                    1f
                 ));
             }
         }
         // Enemy objects
         for (Enemy e : enemies) {
-            renderList.add(createRenderEntity(e.getCurrentFrame(), e.x, e.y));
+            renderList.add(createRenderEntity(e.getCurrentFrame(), e.x, e.y, e.alpha));
         }
 
         // Player object
-        renderList.add(createRenderEntity(player.getCurrentFrame(), player.x, player.y));
+        renderList.add(createRenderEntity(player.getCurrentFrame(), player.x, player.y, 1f));
 
         renderList.sort((a, b) -> Integer.compare(b.baseY, a.baseY));
-        for (RenderEntity e : renderList)
+        for (RenderEntity e : renderList){
+            batch.setColor(1f, 1f, 1f, e.alpha);
             batch.draw(e.region, e.x, e.y, e.width, e.height);
-
+        }
+        batch.setColor(1f, 1f, 1f, 1f); // Back to white
         renderList.clear();
 
+        // For debugging set this to true
         renderDebug(false, batch);
 
+        // Renders shield over anything
         for (Enemy e : enemies) {
             if (e instanceof Templar templar) {
                 templar.renderShield(batch, player);
@@ -197,7 +214,7 @@ public class GameWorld {
         obj.markOnGrid(grid, tileSize);
     }
 
-    // get tile type for player and enemies collision, altars, boosts...
+    // Get tile type for player and enemies collision, altars, boosts...
     public boolean isTileType(int tileX, int tileY, TileType type) {
         int tile = grid[tileY][tileX];
         if (tile < 0) return false;
@@ -210,7 +227,7 @@ public class GameWorld {
         };
     }
 
-    // generates a collision grid for enemies pathfinding based on grid
+    // Generates a collision grid for enemies pathfinding based on grid
     public void generateCollisionGrid() {
         collisionGrid = new boolean[heightInTiles][widthInTiles];
 
@@ -224,7 +241,7 @@ public class GameWorld {
         }
     }
 
-    // function for rendering the debug objects
+    // Function for rendering the debug objects
     private void renderDebug(boolean draw, SpriteBatch batch) {
         if(!draw) return;
         for(Enemy e: enemies) {
@@ -247,6 +264,7 @@ public class GameWorld {
         batch.setColor(1f, 1f, 1f, 1f); // reset color
     }
 
+    // Functions to display UI in GameScreen Class
     public int getScore() {
         return (int)score;
     }
@@ -262,8 +280,6 @@ public class GameWorld {
     public void spawnDamage(float x, float y, int amount, Color color, float scale) {
         damageTexts.add(new DamageText(x, y, String.valueOf(amount), 0.7f, damageFont, color, scale));
     }
-
-
 
     public void dispose() {
         mapTexture.dispose();
@@ -282,14 +298,17 @@ public class GameWorld {
         TextureRegion region;
         float x, y, width, height;
         int baseY;
-        RenderEntity(TextureRegion region, float x, float y, float width, float height, int baseY) {
+        float alpha;
+
+        RenderEntity(TextureRegion region, float x, float y, float width, float height, int baseY, float alpha) {
             this.region = region;
             this.x = x; this.y = y; this.width = width; this.height = height; this.baseY = baseY;
+            this.alpha = alpha;
         }
     }
 
-    // clean entity creation for inserting into the list
-    private RenderEntity createRenderEntity(TextureRegion region, float entityX, float entityY) {
+    // Clean entity creation for inserting into the list
+    private RenderEntity createRenderEntity(TextureRegion region, float entityX, float entityY, float alpha) {
         float width = region.getRegionWidth();
         float height = region.getRegionHeight();
 
@@ -298,6 +317,10 @@ public class GameWorld {
 
         int baseY = (int)(entityY - height / 2f);
 
-        return new RenderEntity(region, drawX, drawY, width, height, baseY);
+        return new RenderEntity(region, drawX, drawY, width, height, baseY, alpha);
+    }
+
+    public void removeEnemy(Enemy enemy) {
+        if (enemy != null) enemiesToRemove.add(enemy);
     }
 }
