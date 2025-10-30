@@ -29,8 +29,8 @@ public class Orb {
     private TextureRegion[] orbFrames;
     private TextureRegion currentFrame;
 
-    private float spawnTime = 0f; // time since orb spawned
-    private final float PULL_DELAY = 0.2f; // 0.2 seconds before pull is allowed
+    private float spawnTime; // time since orb spawned
+    private final float PULL_DELAY = 0.3f; // 0.2 seconds before pull is allowed
 
     private Random rand = new Random();
 
