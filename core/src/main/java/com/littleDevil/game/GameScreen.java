@@ -292,6 +292,22 @@ public class GameScreen implements Screen {
         Player player = gameWorld.player;
         if (player == null) return;
 
+        updatePlayerDisplayValues(player);
+
+        // Ratios
+        float healthRatio = MathUtils.clamp(player.displayHP / player.baseHP, 0f, 1f);
+        float energyRatio = MathUtils.clamp(player.displayEnergy / player.baseEnergy, 0f, 1f);
+        float xpRatio = MathUtils.clamp(player.displayXp / player.neededXp, 0f, 1f);
+
+        // Draw background
+        batch.draw(barsBackground, uiX, uiY, uiWidth, uiHeight);
+
+        drawLevelText(player, uiY, uiHeight, scale);
+        drawBars(healthRatio, energyRatio, xpRatio, uiX, uiY, scale);
+        batch.draw(playerUI, uiX, uiY, uiWidth, uiHeight);
+    }
+
+    private void updatePlayerDisplayValues(Player player) {
         float lerpSpeed = 8f * Gdx.graphics.getDeltaTime();
 
         player.displayHP = MathUtils.lerp(player.displayHP, player.currentHP, lerpSpeed);
@@ -308,46 +324,35 @@ public class GameScreen implements Screen {
         } else {
             player.displayXp = MathUtils.lerp(player.displayXp, player.currentXp, lerpSpeed);
         }
+    }
 
-        // Ratios
-        float healthRatio = MathUtils.clamp(player.displayHP / player.baseHP, 0f, 1f);
-        float energyRatio = MathUtils.clamp(player.displayEnergy / player.baseEnergy, 0f, 1f);
-        float xpRatio = MathUtils.clamp(player.displayXp / player.neededXp, 0f, 1f);
+    private void drawBars(float healthRatio, float energyRatio, float xpRatio, float uiX, float uiY, float scale) {
+        float fullHealthWidth = 43f * scale;
+        float fullEnergyWidth = 43f * scale;
+        float fullXPWidth = 76f * scale;
 
-        // Draw background
-        batch.draw(barsBackground, uiX, uiY, uiWidth, uiHeight);
+        float healthHeight = 5f * scale;
+        float energyHeight = 5f * scale;
+        float xpHeight = 2f * scale;
 
-        // Bar dimensions
-        float barScale = scale;
-        float fullHealthWidth = 43f * barScale;
-        float fullEnergyWidth = 43f * barScale;
-        float fullXPWidth = 76f * barScale;
-        float healthHeight = 5f * barScale;
-        float energyHeight = 5f * barScale;
-        float xpHeight = 2f * barScale;
-
-        // Bar positions
-        float healthX = uiX + 12f * barScale;
-        float healthY = uiY + 23f * barScale;
-        float energyX = uiX + 57f * barScale;
+        float healthX = uiX + 12f * scale;
+        float healthY = uiY + 23f * scale;
+        float energyX = uiX + 57f * scale;
         float energyY = healthY;
-        float xpX = uiX + 18f * barScale;
-        float xpY = uiY + 32f * barScale;
+        float xpX = uiX + 18f * scale;
+        float xpY = uiY + 32f * scale;
 
-        // Draw level text
+        batch.draw(healthBar, healthX, healthY, fullHealthWidth * healthRatio, healthHeight);
+        batch.draw(energyBar, energyX, energyY, fullEnergyWidth * energyRatio, energyHeight);
+        batch.draw(xpBar, xpX, xpY, fullXPWidth * xpRatio, xpHeight);
+    }
+
+    private void drawLevelText(Player player, float uiY, float uiHeight, float scale) {
         String levelText = "Lvl " + (int)player.level;
         levelLayout.setText(levelFont, levelText);
         float textX = (UIViewport.getWorldWidth() - levelLayout.width) / 2f;
         float textY = uiY + uiHeight - 5f * scale;
         levelFont.draw(batch, levelText, textX, textY);
-
-        // Draw bars
-        batch.draw(healthBar, healthX, healthY, fullHealthWidth * healthRatio, healthHeight);
-        batch.draw(energyBar, energyX, energyY, fullEnergyWidth * energyRatio, energyHeight);
-        batch.draw(xpBar, xpX, xpY, fullXPWidth * xpRatio, xpHeight);
-
-        // Frame over everything
-        batch.draw(playerUI, uiX, uiY, uiWidth, uiHeight);
     }
 
     // Draws Score UI

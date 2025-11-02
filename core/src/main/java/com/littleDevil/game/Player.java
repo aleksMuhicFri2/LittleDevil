@@ -260,12 +260,13 @@ public class Player {
     public void boostDamage(float time, float multiplier){ damageBoostTimer = time; damageMultiplier = multiplier; }
 
     public void addXP(float value) {
+        float XP_INCREASE_RATIO = 1.15f;
         currentXp += value;
 
         if (currentXp >= neededXp) {
             currentXp -= neededXp;
             previousNeededXp = neededXp;
-            neededXp *= 1.15f;
+            neededXp *= XP_INCREASE_RATIO;
             levelUp = true;
             xpOverflowAnimating = true; // start overflow animation
         }
