@@ -5,6 +5,7 @@ import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.*;
 import com.badlogic.gdx.graphics.g2d.*;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -14,7 +15,7 @@ public class GameScreen implements Screen {
 
     private final Main game;
 
-    // white pixel texture
+    // White pixel texture
     private Texture pixel;
 
     // Game Cameras
@@ -30,6 +31,12 @@ public class GameScreen implements Screen {
     private Texture playerUI;
     private Texture wavePanel;
 
+    // Player UI bars
+    private Texture barsBackground;
+    private Texture healthBar;
+    private Texture energyBar;
+    private Texture xpBar;
+
     // Game world
     private GameWorld gameWorld;
 
@@ -42,13 +49,15 @@ public class GameScreen implements Screen {
     private Texture darknessTexture;
     private float darknessAlpha = 0.55f;
 
-    // Font + layout
+    // Fonts + layouts
     private BitmapFont scoreFont;
     private GlyphLayout scoreLayout;
     private BitmapFont waveFont;
     private GlyphLayout waveLayout;
     private BitmapFont comboFont;
     private GlyphLayout comboLayout;
+    private BitmapFont levelFont;
+    private GlyphLayout levelLayout;
 
     // Music
     private Music backgroundMusic;
@@ -68,10 +77,17 @@ public class GameScreen implements Screen {
     @Override
     public void show() {
         batch = new SpriteBatch();
+
+        // Load textures
         pixel = new Texture("whitePixel.png");
         playerUI = new Texture("GameUI/playerUI.png");
         wavePanel = new Texture("GameUI/wavePanel.png");
+        barsBackground = new Texture("GameUI/barsBackground.png");
+        healthBar = new Texture("GameUI/healthBar.png");
+        energyBar = new Texture("GameUI/energyBar.png");
+        xpBar = new Texture("GameUI/xpBar.png");
 
+        // Font generator setup
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
 
@@ -83,32 +99,39 @@ public class GameScreen implements Screen {
         // Wave font
         param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
         param.color = new Color(0f, 0f, 0f, 1f);
-        param.borderWidth = 0.5f; // a bit of boldness
+        param.borderWidth = 0.5f;
         waveFont = generator.generateFont(param);
 
         // Combo font
         param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
-        param.color = new Color(1f, 0.1f, 0f, 1f); // orange
+        param.color = new Color(1f, 0.1f, 0f, 1f);
         comboFont = generator.generateFont(param);
+
+        // Level font
+        param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
+        param.color = Color.SKY;
+        param.borderWidth = 0f;
+        levelFont = generator.generateFont(param);
 
         generator.dispose();
 
-        // Defining layouts
+        // Define layouts
         scoreLayout = new GlyphLayout();
         waveLayout = new GlyphLayout();
         comboLayout = new GlyphLayout();
+        levelLayout = new GlyphLayout();
 
-        // Defining music properties
+        // Background music
         backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("Sounds/gameBackgroundMusic.mp3"));
         backgroundMusic.setLooping(true);
         backgroundMusic.setVolume(0.1f);
         backgroundMusic.play();
 
-        // Game world init
+        // Game world setup
         gameWorld = new GameWorld(600, 400, 4);
         gameWorld.initialize();
 
-        // Defining Texture for Darkness Overlay
+        // Darkness overlay
         Pixmap pix = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pix.setColor(0f, 0f, 0f, 1f);
         pix.fill();
@@ -133,24 +156,25 @@ public class GameScreen implements Screen {
     public void render(float delta) {
         if (timePaused) delta = 0f;
         float worldDelta = timePaused ? 0f : delta;
-        float cameraDelta = delta;
 
         gameWorld.update(worldDelta, this);
-        updateCamera(cameraDelta);
+        updateCamera(delta);
         updateMouse();
 
         ScreenUtils.clear(Color.BLACK);
+
+        // Game world render
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
         gameWorld.render(batch);
 
-        // Additive blending for lights
+        // Darkness overlay
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         batch.setColor(1f, 1f, 1f, darknessAlpha);
         batch.draw(darknessTexture, 0, 0, gameWorld.mapWidth, gameWorld.mapHeight);
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
 
-        // Rendering all the lights from separate file
+        // Draw lights
         for (Light light : LightData.lightObjects) {
             float drawX = light.x - light.width / 2f;
             float drawY = light.y - light.height / 2f;
@@ -162,13 +186,14 @@ public class GameScreen implements Screen {
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         batch.end();
 
+        // UI render
         batch.setProjectionMatrix(UICamera.combined);
         batch.begin();
         drawPlayerUI();
         drawWavePanelUI();
         drawWaveUI();
         drawScoreUI();
-        drawComboUI(); // new
+        drawComboUI();
         batch.end();
     }
 
@@ -176,7 +201,7 @@ public class GameScreen implements Screen {
         Player player = gameWorld.player;
         if (player == null) return;
 
-        float lerp = 3f * delta; // lerp for faster or slower player tracking
+        float lerp = 3f * delta;
         float targetX = player.x;
         float targetY = player.y;
 
@@ -191,14 +216,12 @@ public class GameScreen implements Screen {
 
         float halfW = camera.viewportWidth / 2f;
         float halfH = camera.viewportHeight / 2f;
-        camera.position.x = Math.max(halfW, Math.min(gameWorld.mapWidth - halfW, camera.position.x));
-        camera.position.y = Math.max(halfH, Math.min(gameWorld.mapHeight - halfH, camera.position.y));
+        camera.position.x = MathUtils.clamp(camera.position.x, halfW, gameWorld.mapWidth - halfW);
+        camera.position.y = MathUtils.clamp(camera.position.y, halfH, gameWorld.mapHeight - halfH);
 
         if (timePaused) {
             timePauseTimer -= Gdx.graphics.getDeltaTime();
-            if (timePauseTimer <= 0f) {
-                timePaused = false;
-            }
+            if (timePauseTimer <= 0f) timePaused = false;
         }
 
         camera.update();
@@ -216,7 +239,7 @@ public class GameScreen implements Screen {
         }
     }
 
-    // Function that balances scale of UI when resizing
+    // Balances scale of UI when resizing
     private float getScale(float maxScale) {
         float referenceWidth = 1920f;
         float referenceHeight = 1080f;
@@ -227,7 +250,7 @@ public class GameScreen implements Screen {
         return Math.min(scale * 8f, maxScale);
     }
 
-    // Draws WavePanel
+    // Draws wave panel
     private void drawWavePanelUI() {
         float baseWidth = 64f;
         float baseHeight = 64f;
@@ -259,12 +282,70 @@ public class GameScreen implements Screen {
     // Draws Player UI
     private void drawPlayerUI() {
         float baseWidth = 112f;
-        float baseHeight = 32f;
+        float baseHeight = 48f;
         float scale = getScale(3.5f);
         float uiWidth = baseWidth * scale;
         float uiHeight = baseHeight * scale;
         float uiX = (UIViewport.getWorldWidth() - uiWidth) / 2f;
-        float uiY = 0 - uiHeight * 0.5f;
+        float uiY = -uiHeight * 0.4f;
+
+        Player player = gameWorld.player;
+        if (player == null) return;
+
+        float lerpSpeed = 8f * Gdx.graphics.getDeltaTime();
+
+        player.displayHP = MathUtils.lerp(player.displayHP, player.currentHP, lerpSpeed);
+        player.displayEnergy = MathUtils.lerp(player.displayEnergy, player.currentEnergy, lerpSpeed);
+
+        if (player.xpOverflowAnimating) {
+            player.displayXp = MathUtils.lerp(player.displayXp, player.previousNeededXp, lerpSpeed);
+            if (Math.abs(player.displayXp - player.previousNeededXp) < 1f) {
+                player.displayXp = 0f;
+                player.xpOverflowAnimating = false;
+                player.levelUp = false;
+            }
+        } else {
+            player.displayXp = MathUtils.lerp(player.displayXp, player.currentXp, lerpSpeed);
+        }
+
+        // Ratios
+        float healthRatio = MathUtils.clamp(player.displayHP / player.baseHP, 0f, 1f);
+        float energyRatio = MathUtils.clamp(player.displayEnergy / player.baseEnergy, 0f, 1f);
+        float xpRatio = MathUtils.clamp(player.displayXp / player.neededXp, 0f, 1f);
+
+        // Draw background
+        batch.draw(barsBackground, uiX, uiY, uiWidth, uiHeight);
+
+        // Bar dimensions
+        float barScale = scale;
+        float fullHealthWidth = 43f * barScale;
+        float fullEnergyWidth = 43f * barScale;
+        float fullXPWidth = 76f * barScale;
+        float healthHeight = 5f * barScale;
+        float energyHeight = 5f * barScale;
+        float xpHeight = 2f * barScale;
+
+        // Bar positions
+        float healthX = uiX + 12f * barScale;
+        float healthY = uiY + 23f * barScale;
+        float energyX = uiX + 57f * barScale;
+        float energyY = healthY;
+        float xpX = uiX + 18f * barScale;
+        float xpY = uiY + 32f * barScale;
+
+        // Draw level text
+        String levelText = "Lvl " + (int)player.level;
+        levelLayout.setText(levelFont, levelText);
+        float textX = (UIViewport.getWorldWidth() - levelLayout.width) / 2f;
+        float textY = uiY + uiHeight - 5f * scale;
+        levelFont.draw(batch, levelText, textX, textY);
+
+        // Draw bars
+        batch.draw(healthBar, healthX, healthY, fullHealthWidth * healthRatio, healthHeight);
+        batch.draw(energyBar, energyX, energyY, fullEnergyWidth * energyRatio, energyHeight);
+        batch.draw(xpBar, xpX, xpY, fullXPWidth * xpRatio, xpHeight);
+
+        // Frame over everything
         batch.draw(playerUI, uiX, uiY, uiWidth, uiHeight);
     }
 
@@ -278,32 +359,28 @@ public class GameScreen implements Screen {
         float y = UIViewport.getWorldHeight() - 20f;
 
         scoreFont.draw(batch, label, labelX, y);
-
-        float numberX = labelX + scoreLayout.width + 10f;
         scoreLayout.setText(scoreFont, value);
-        scoreFont.draw(batch, value, numberX, y);
+        scoreFont.draw(batch, value, labelX + scoreLayout.width + 10f, y);
     }
 
     // Draws Combo UI
     private void drawComboUI() {
         int combo = gameWorld.getCombo();
-        if (combo <= 0) return; // don't display zero combos
+        if (combo <= 0) return;
 
         String label = "Combo:";
-        String value = String.valueOf(combo) + "x";
+        String value = combo + "x";
 
         comboLayout.setText(comboFont, label);
         float labelX = 20f;
-        float y = UIViewport.getWorldHeight() - 60f; // below score
+        float y = UIViewport.getWorldHeight() - 60f;
 
         comboFont.draw(batch, label, labelX, y);
-
-        float numberX = labelX + comboLayout.width + 10f;
         comboLayout.setText(comboFont, value);
-        comboFont.draw(batch, value, numberX, y);
+        comboFont.draw(batch, value, labelX + comboLayout.width + 10f, y);
     }
 
-    // public functions
+    // Public functions
     public static float getMouseAngle() {
         return mouseAngle;
     }
@@ -325,15 +402,13 @@ public class GameScreen implements Screen {
     }
 
     @Override public void pause() {
-        if (backgroundMusic != null && backgroundMusic.isPlaying()) {
-            backgroundMusic.pause();
-        }
+        if (backgroundMusic != null && backgroundMusic.isPlaying()) backgroundMusic.pause();
     }
+
     @Override public void resume() {
-        if (backgroundMusic != null && !backgroundMusic.isPlaying()) {
-            backgroundMusic.play();
-        }
+        if (backgroundMusic != null && !backgroundMusic.isPlaying()) backgroundMusic.play();
     }
+
     @Override public void hide() {}
 
     @Override
@@ -345,5 +420,10 @@ public class GameScreen implements Screen {
         scoreFont.dispose();
         waveFont.dispose();
         comboFont.dispose();
+        barsBackground.dispose();
+        healthBar.dispose();
+        energyBar.dispose();
+        xpBar.dispose();
+        levelFont.dispose();
     }
 }

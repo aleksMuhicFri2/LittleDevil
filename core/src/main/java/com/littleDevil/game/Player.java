@@ -24,9 +24,8 @@ public class Player {
     private float baseLifesteal = 0f, lifesteal = baseLifesteal, lifestealMultiplier = 1f, lifestealBoostTimer = 0f;
     public float luck = 0.01f;
     public float critChance = luck, critMultiplier = 1.5f;
-    public float currentXp = 0f; public float neededXp = 15f;
-
-    public float baseEnergy = 100f, currentEnergy = baseEnergy;
+    public float baseEnergy = 100f, currentEnergy = 0f;
+    public float level = 1f, currentXp = 10f, neededXp = 15f, previousNeededXp = neededXp;
 
     // Collision
     public int collisionOffsetX = -4, collisionOffsetY = -16, collisionWidth = 8, collisionHeight = 4;
@@ -64,6 +63,12 @@ public class Player {
     private float hitFlashTimer = 0f;
     private final float hitFlashDuration = 0.1f;
 
+    public float displayHP;
+    public float displayEnergy;
+    public float displayXp;
+    public boolean levelUp = false;
+    public boolean xpOverflowAnimating = false;
+
 
     public Player(float startX, float startY, String spriteSheetPath) {
         this.x = startX;
@@ -84,6 +89,9 @@ public class Player {
 
         dashSpeed = baseSpeed * 3;
 
+        displayHP = currentHP;
+        displayEnergy = currentEnergy;
+        displayXp = currentXp;
     }
 
     public void update(float delta, GameWorld world) {
@@ -253,6 +261,14 @@ public class Player {
 
     public void addXP(float value) {
         currentXp += value;
+
+        if (currentXp >= neededXp) {
+            currentXp -= neededXp;
+            previousNeededXp = neededXp;
+            neededXp *= 1.15f;
+            levelUp = true;
+            xpOverflowAnimating = true; // start overflow animation
+        }
     }
 
     private void updateKnockback(float delta, GameWorld world) {

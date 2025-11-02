@@ -348,29 +348,53 @@ public class Templar extends Enemy {
         float angleToPlayer = (float) Math.atan2(player.y - y, player.x - x);
 
         // Back direction (opposite the player)
-        float backAngle = angleToPlayer + (float)Math.PI;
+        float backAngle = angleToPlayer + (float) Math.PI;
 
-        int guaranteed = (int) guaranteedOrbsCounts[0];
-        for (int i = 0; i < guaranteed; i++) {
-            Orb.OrbType type = Orb.OrbType.COMMON;
+        // Spawn all guaranteed orbs for each type
+        for (int i = 0; i < guaranteedOrbsCounts.length; i++) {
+            Orb.OrbType type;
+            switch (i) {
+                case 0 -> type = Orb.OrbType.COMMON;
+                case 1 -> type = Orb.OrbType.RARE;
+                case 2 -> type = Orb.OrbType.GOLD;
+                default -> type = Orb.OrbType.COMMON;
+            }
 
-            // Random angle within 90° behind enemy
-            float offset = ((rand.nextFloat() - 0.5f) * (float)Math.PI); // -45° to +45°
-            float angle = backAngle + offset;
+            int guaranteed = (int) guaranteedOrbsCounts[i];
+            for (int j = 0; j < guaranteed; j++) {
+                // Random angle within 90° behind enemy
+                float offset = ((rand.nextFloat() - 0.5f) * (float) Math.PI); // -45° to +45°
+                float angle = backAngle + offset;
 
-            float speed = 65f + rand.nextFloat() * 20f;
-            Vector2 initialVelocity = new Vector2((float)Math.cos(angle) * speed, (float)Math.sin(angle) * speed);
+                float speed = 65f + rand.nextFloat() * 20f;
+                Vector2 initialVelocity = new Vector2(
+                    (float) Math.cos(angle) * speed,
+                    (float) Math.sin(angle) * speed
+                );
 
-            gameWorld.orbs.add(new Orb(x, y, type, orbSheet, initialVelocity));
+                gameWorld.orbs.add(new Orb(x, y, type, orbSheet, initialVelocity));
+            }
         }
 
+        // Handle extra chance orbs
         for (int i = 0; i < firstExtraChances.length; i++) {
             if (rand.nextFloat() < firstExtraChances[i]) {
-                Orb.OrbType type = i == 0 ? Orb.OrbType.COMMON : i == 1 ? Orb.OrbType.RARE : Orb.OrbType.GOLD;
-                float offset = ((rand.nextFloat() - 0.5f) * (float)Math.PI); // -45° to +45°
+                Orb.OrbType type;
+                switch (i) {
+                    case 0 -> type = Orb.OrbType.COMMON;
+                    case 1 -> type = Orb.OrbType.RARE;
+                    case 2 -> type = Orb.OrbType.GOLD;
+                    default -> type = Orb.OrbType.COMMON;
+                }
+
+                float offset = ((rand.nextFloat() - 0.5f) * (float) Math.PI); // -45° to +45°
                 float angle = backAngle + offset;
                 float speed = 100f + rand.nextFloat() * 30f;
-                Vector2 initialVelocity = new Vector2((float)Math.cos(angle) * speed, (float)Math.sin(angle) * speed);
+                Vector2 initialVelocity = new Vector2(
+                    (float) Math.cos(angle) * speed,
+                    (float) Math.sin(angle) * speed
+                );
+
                 gameWorld.orbs.add(new Orb(x, y, type, orbSheet, initialVelocity));
             }
         }
