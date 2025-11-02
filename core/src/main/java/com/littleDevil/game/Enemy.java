@@ -18,7 +18,7 @@ public abstract class Enemy {
     protected float HP = 100f;
     protected float damage = 30f;
     protected float moveSpeed = 30f;
-    protected float intelligence = 3f;
+    protected float intelligence = 1f;
 
     protected float[] guaranteedOrbsCounts = new float[3];
     protected float[] firstExtraChances =  new float[3];
@@ -65,6 +65,7 @@ public abstract class Enemy {
         currentFrame = new TextureRegion(spriteSheet, 0, 0, 32, 32);
         hitSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/hitSound.mp3"));
         pathUpdateOffset = (float) Math.random() * 2f;
+        intelligence += gameWorld.wave;
     }
 
     // Abstract function every Enemy needs to implement

@@ -182,6 +182,7 @@ public class Templar extends Enemy {
                     hitThisAttack = true;
                     boolean applyKnockbackFlag = state != TemplarState.CHANNELING && state != TemplarState.BASHING;
                     templarHit(dx, dy, applyKnockbackFlag, 0.1f, 0.15f, player, gameScreen, gameWorld);
+                    gameWorld.combo += 1;
                 }
             }
         }

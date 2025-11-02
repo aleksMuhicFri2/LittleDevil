@@ -383,7 +383,7 @@ public class GameScreen implements Screen {
 
         comboFont.draw(batch, label, labelX, y);
         comboLayout.setText(comboFont, value);
-        comboFont.draw(batch, value, labelX + comboLayout.width + 10f, y);
+        comboFont.draw(batch, value, labelX + comboLayout.width + 70f, y);
     }
 
     // Public functions

@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.math.MathUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -74,8 +75,7 @@ public class GameWorld {
 
         // Enemies
         enemies = new ArrayList<>();
-        enemies.add(new Templar(250, 140, this));
-        enemies.add(new Templar(270, 140, this));
+        //spawnEnemy();
         //enemies.add(new Templar(290, 140, this));
         //enemies.add(new Templar(310, 140, this));
         //enemies.add(new Templar(330, 140, this));
@@ -202,7 +202,7 @@ public class GameWorld {
         renderList.clear();
 
         // For debugging set this to true
-        renderDebug(false, batch);
+        renderDebug(true, batch);
 
         // Renders shield over anything
         for (Enemy e : enemies) {
@@ -329,6 +329,70 @@ public class GameWorld {
 
         return new RenderEntity(region, drawX, drawY, width, height, baseY, alpha);
     }
+
+    public void spawnEnemy() {
+        int type = 0; // only type 0 for now
+
+        float enemyWidth = 32f;  // replace with your enemy width
+        float enemyHeight = 32f; // replace with your enemy height
+        float offset = tileSize * 3;
+
+        float spawnX, spawnY;
+        int attempts = 0;
+        boolean valid = false;
+
+        do {
+            attempts++;
+            int side = (int) (Math.random() * 4); // 0=top,1=bottom,2=left,3=right
+
+            switch (side) {
+                case 0 -> { // Top
+                    spawnX = offset + (float)(Math.random() * (mapWidth - 2 * offset - enemyWidth)) + enemyWidth/2f;
+                    spawnY = mapHeight - offset - enemyHeight/2f;
+                }
+                case 1 -> { // Bottom
+                    spawnX = offset + (float)(Math.random() * (mapWidth - 2 * offset - enemyWidth)) + enemyWidth/2f;
+                    spawnY = offset + enemyHeight/2f;
+                }
+                case 2 -> { // Left
+                    spawnX = offset + enemyWidth/2f;
+                    spawnY = offset + (float)(Math.random() * (mapHeight - 2 * offset - enemyHeight)) + enemyHeight/2f;
+                }
+                case 3 -> { // Right
+                    spawnX = mapWidth - offset - enemyWidth/2f;
+                    spawnY = offset + (float)(Math.random() * (mapHeight - 2 * offset - enemyHeight)) + enemyHeight/2f;
+                }
+                default -> { // fallback
+                    spawnX = mapWidth/2f;
+                    spawnY = mapHeight/2f;
+                }
+            }
+
+            // Clamp just in case
+            spawnX = MathUtils.clamp(spawnX, enemyWidth/2f, mapWidth - enemyWidth/2f);
+            spawnY = MathUtils.clamp(spawnY, enemyHeight/2f, mapHeight - enemyHeight/2f);
+
+            // Check if the spawn position collides with any collision object
+            valid = true;
+            for (CollisionObject obj : objects) {
+                if (spawnX + enemyWidth/2f > obj.posX && spawnX - enemyWidth/2f < obj.posX + obj.width &&
+                    spawnY + enemyHeight/2f > obj.posY && spawnY - enemyHeight/2f < obj.posY + obj.height) {
+                    valid = false;
+                    break;
+                }
+            }
+
+        } while (!valid && attempts < 50); // give up after 50 tries to avoid infinite loop
+
+        // Create enemy only if a valid position was found
+        if (valid) {
+            Enemy newEnemy = new Templar(spawnX, spawnY, this); // type 0 for now
+            enemies.add(newEnemy);
+        } else {
+            Gdx.app.log("SpawnEnemy", "Failed to find valid spawn position after 50 attempts!");
+        }
+    }
+
 
     public void removeEnemy(Enemy enemy) {
         if (enemy != null) enemiesToRemove.add(enemy);
