@@ -360,7 +360,7 @@ public class GameScreen implements Screen {
 
         scoreFont.draw(batch, label, labelX, y);
         scoreLayout.setText(scoreFont, value);
-        scoreFont.draw(batch, value, labelX + scoreLayout.width + 10f, y);
+        scoreFont.draw(batch, value, labelX + scoreLayout.width + 100f, y);
     }
 
     // Draws Combo UI

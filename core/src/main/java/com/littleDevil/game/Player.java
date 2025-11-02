@@ -25,7 +25,7 @@ public class Player {
     public float luck = 0.01f;
     public float critChance = luck, critMultiplier = 1.5f;
     public float baseEnergy = 100f, currentEnergy = 0f;
-    public float level = 1f, currentXp = 10f, neededXp = 15f, previousNeededXp = neededXp;
+    public float level = 1f, currentXp = 0f, neededXp = 15f, previousNeededXp = neededXp;
 
     // Collision
     public int collisionOffsetX = -4, collisionOffsetY = -16, collisionWidth = 8, collisionHeight = 4;
@@ -266,6 +266,7 @@ public class Player {
             currentXp -= neededXp;
             previousNeededXp = neededXp;
             neededXp *= 1.15f;
+            level += 1;
             levelUp = true;
             xpOverflowAnimating = true; // start overflow animation
         }
