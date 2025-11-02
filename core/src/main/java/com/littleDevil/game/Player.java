@@ -266,7 +266,6 @@ public class Player {
             currentXp -= neededXp;
             previousNeededXp = neededXp;
             neededXp *= 1.15f;
-            level += 1;
             levelUp = true;
             xpOverflowAnimating = true; // start overflow animation
         }

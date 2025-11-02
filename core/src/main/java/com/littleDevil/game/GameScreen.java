@@ -303,6 +303,7 @@ public class GameScreen implements Screen {
                 player.displayXp = 0f;
                 player.xpOverflowAnimating = false;
                 player.levelUp = false;
+                player.level += 1;
             }
         } else {
             player.displayXp = MathUtils.lerp(player.displayXp, player.currentXp, lerpSpeed);
