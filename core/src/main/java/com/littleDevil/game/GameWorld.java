@@ -75,7 +75,7 @@ public class GameWorld {
 
         // Enemies
         enemies = new ArrayList<>();
-        //spawnEnemy();
+        spawnEnemy();
         //enemies.add(new Templar(290, 140, this));
         //enemies.add(new Templar(310, 140, this));
         //enemies.add(new Templar(330, 140, this));
@@ -375,14 +375,14 @@ public class GameWorld {
             // Check if the spawn position collides with any collision object
             valid = true;
             for (CollisionObject obj : objects) {
-                if (spawnX + enemyWidth/2f > obj.posX && spawnX - enemyWidth/2f < obj.posX + obj.width &&
-                    spawnY + enemyHeight/2f > obj.posY && spawnY - enemyHeight/2f < obj.posY + obj.height) {
+                if (spawnX + enemyWidth > obj.posX && spawnX - enemyWidth/2f < obj.posX + obj.width &&
+                    spawnY + enemyHeight > obj.posY && spawnY - enemyHeight/2f < obj.posY + obj.height) {
                     valid = false;
                     break;
                 }
             }
 
-        } while (!valid && attempts < 50); // give up after 50 tries to avoid infinite loop
+        } while (!valid && attempts < 10); // give up after 50 tries to avoid infinite loop
 
         // Create enemy only if a valid position was found
         if (valid) {

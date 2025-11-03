@@ -16,6 +16,12 @@ public class Templar extends Enemy {
     public TextureRegion currentShieldFrame;
     private TextureRegion[] templarFrames, shieldFrames;
 
+    public float BASE_HP = 200f;
+    public float WAVE_HP_INCREMENT = 20f;
+
+    public float BASE_DAMAGE = 20f;
+    public float WAVE_DAMAGE_INCREMENT = 2f;
+
     public enum TemplarState {
         CHASING,
         CHANNELING,
@@ -46,6 +52,7 @@ public class Templar extends Enemy {
 
     private final Sound bashSound;
 
+    // For Death Animation
     private float helmetY;
     private float helmetVelocity = 0f;
     private final float GRAVITY = 300f; // tweak for drop speed
@@ -56,9 +63,9 @@ public class Templar extends Enemy {
         shieldSpritesheet = new Texture("Spritesheets/shieldSpritesheet.png");
         bashSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/shieldBash.mp3"));
 
-        HP = 200f;
-        height = 32f;
-        width = 32f;
+        HP = BASE_HP + (world.wave - 1) * WAVE_HP_INCREMENT;
+        damage = BASE_DAMAGE +  (world.wave - 1) * WAVE_DAMAGE_INCREMENT;
+
         moveSpeed = 30f;
         knockbackDecay = 150f;
 
@@ -95,7 +102,6 @@ public class Templar extends Enemy {
                     if (distanceToPlayer(player) < ATTACK_RANGE && bashCooldownTimer <= 0f) {
                         state = TemplarState.CHANNELING;
                         stateTimer = CHANNEL_TIME;
-                        bashDir.set(player.x - x, player.y - y).nor();
                     }
                 }
 
@@ -103,6 +109,9 @@ public class Templar extends Enemy {
                     float progress = 1f - stateTimer / CHANNEL_TIME;
                     int frameIndex = Math.min(4, (int)(progress * 5f));
                     currentShieldFrame = shieldFrames[frameIndex];
+
+                    // delays choosing the direction based on intelligence (max 10)
+                    if (stateTimer >= CHANNEL_TIME - CHANNEL_TIME * (Math.min(intelligence, 10) / 10)) bashDir.set(player.x - x, player.y - y).nor();
 
                     if (stateTimer <= 0f) {
                         state = TemplarState.BASHING;

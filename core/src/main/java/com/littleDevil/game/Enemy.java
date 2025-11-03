@@ -15,8 +15,11 @@ public abstract class Enemy {
     public float width = 32f, height = 32f;
 
     // Stats that all Enemies have
-    protected float HP = 100f;
-    protected float damage = 30f;
+    public float BASE_HP = 100f;
+    public float BASE_DAMAGE = 20f;
+    protected float HP;
+    protected float damage;
+
     protected float moveSpeed = 30f;
     protected float intelligence = 1f;
 
@@ -65,7 +68,9 @@ public abstract class Enemy {
         currentFrame = new TextureRegion(spriteSheet, 0, 0, 32, 32);
         hitSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/hitSound.mp3"));
         pathUpdateOffset = (float) Math.random() * 2f;
-        intelligence += gameWorld.wave;
+
+        HP = BASE_HP + (gameWorld.wave - 1) * 20f;
+        damage = BASE_DAMAGE +  (gameWorld.wave - 1) * 2f;
     }
 
     // Abstract function every Enemy needs to implement
