@@ -120,8 +120,8 @@ public class Orb {
     private int getXP() {
         return switch(type) {
             case COMMON -> 1;
-            case RARE -> 3;
-            case GOLD -> 10;
+            case RARE -> 5;
+            case GOLD -> 20;
         };
     }
 

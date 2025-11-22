@@ -8,9 +8,11 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Vector2;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class GameWorld {
 
@@ -36,6 +38,7 @@ public class GameWorld {
     // Candle Decorations
     private Texture candleSheet;
     Texture pixel = new Texture("whitePixel.png");
+    Texture potionSheet = new Texture("Spritesheets/nunPotionSpritesheet.png");
 
     // Pathing
     private final float PATH_UPDATE_INTERVAL = 1f; // 1 update per second (BASE)
@@ -51,6 +54,12 @@ public class GameWorld {
     private final List<Enemy> enemiesToRemove = new ArrayList<>();
 
     public List<Orb> orbs = new ArrayList<>();
+    public List<BottleProjectile> potions = new ArrayList<>();
+
+    public enum EnemyType {
+        TEMPLAR,
+        NUN
+    }
 
     // Public UI info to be displayed on screen
     public float score = 0f;
@@ -75,7 +84,8 @@ public class GameWorld {
 
         // Enemies
         enemies = new ArrayList<>();
-        spawnEnemy();
+        //spawnEnemy(EnemyType.TEMPLAR);
+        spawnEnemy(EnemyType.NUN);
         //enemies.add(new Templar(290, 140, this));
         //enemies.add(new Templar(310, 140, this));
         //enemies.add(new Templar(330, 140, this));
@@ -153,6 +163,11 @@ public class GameWorld {
             orb.update(delta, player, this);
             if (!orb.isAlive()) orbs.remove(i);
         }
+        for (int i = potions.size() - 1; i >= 0; i--) {
+            BottleProjectile p = potions.get(i);
+            p.update(delta);
+            if (p.isDead()) potions.remove(i);
+        }
     }
 
     public void render(SpriteBatch batch) {
@@ -166,6 +181,10 @@ public class GameWorld {
         bigAltar.render(batch);
         for (GameCandle candle : candles) {
             candle.draw(batch);
+        }
+
+        for (BottleProjectile p : potions) {
+            p.render(batch);
         }
 
         // Player sword
@@ -330,8 +349,7 @@ public class GameWorld {
         return new RenderEntity(region, drawX, drawY, width, height, baseY, alpha);
     }
 
-    public void spawnEnemy() {
-        int type = 0; // only type 0 for now
+    public void spawnEnemy(EnemyType type) {
 
         float enemyWidth = 32f;  // replace with your enemy width
         float enemyHeight = 32f; // replace with your enemy height
@@ -386,7 +404,14 @@ public class GameWorld {
 
         // Create enemy only if a valid position was found
         if (valid) {
-            Enemy newEnemy = new Templar(spawnX, spawnY, this); // type 0 for now
+            Enemy newEnemy;
+
+            switch (type) {
+                case TEMPLAR -> newEnemy = new Templar(spawnX, spawnY, this);
+                case NUN -> newEnemy = new Nun(spawnX, spawnY, this);
+                default -> newEnemy = new Templar(spawnX, spawnY, this);
+            }
+
             enemies.add(newEnemy);
         } else {
             Gdx.app.log("SpawnEnemy", "Failed to find valid spawn position after 50 attempts!");
@@ -396,5 +421,70 @@ public class GameWorld {
 
     public void removeEnemy(Enemy enemy) {
         if (enemy != null) enemiesToRemove.add(enemy);
+    }
+
+    public void spawnOrbs(Enemy enemy, Player player) {
+        Texture orbSheet = new Texture("Spritesheets/xpOrbs.png");
+        Random rand = new Random();
+
+        // Angle from enemy to player
+        float angleToPlayer = (float) Math.atan2(player.y - enemy.y, player.x - enemy.x);
+
+        // Back direction (opposite the player)
+        float backAngle = angleToPlayer + (float) Math.PI;
+
+        // Spawn all guaranteed orbs for each type
+        for (int i = 0; i < enemy.guaranteedOrbsCounts.length; i++) {
+            Orb.OrbType type;
+            switch (i) {
+                case 0 -> type = Orb.OrbType.COMMON;
+                case 1 -> type = Orb.OrbType.RARE;
+                case 2 -> type = Orb.OrbType.GOLD;
+                default -> type = Orb.OrbType.COMMON;
+            }
+
+            int guaranteed = (int) enemy.guaranteedOrbsCounts[i];
+            for (int j = 0; j < guaranteed; j++) {
+                // Random angle within 90° behind enemy
+                float offset = ((rand.nextFloat() - 0.5f) * (float) Math.PI); // -45° to +45°
+                float angle = backAngle + offset;
+
+                float speed = 65f + rand.nextFloat() * 20f;
+                Vector2 initialVelocity = new Vector2(
+                    (float) Math.cos(angle) * speed,
+                    (float) Math.sin(angle) * speed
+                );
+
+                orbs.add(new Orb(enemy.x, enemy.y, type, orbSheet, initialVelocity));
+            }
+        }
+
+        // Handle extra chance orbs
+        for (int i = 0; i < enemy.firstExtraChances.length; i++) {
+            if (rand.nextFloat() < enemy.firstExtraChances[i]) {
+                Orb.OrbType type;
+                switch (i) {
+                    case 0 -> type = Orb.OrbType.COMMON;
+                    case 1 -> type = Orb.OrbType.RARE;
+                    case 2 -> type = Orb.OrbType.GOLD;
+                    default -> type = Orb.OrbType.COMMON;
+                }
+
+                float offset = ((rand.nextFloat() - 0.5f) * (float) Math.PI); // -45° to +45°
+                float angle = backAngle + offset;
+                float speed = 100f + rand.nextFloat() * 30f;
+                Vector2 initialVelocity = new Vector2(
+                    (float) Math.cos(angle) * speed,
+                    (float) Math.sin(angle) * speed
+                );
+
+                orbs.add(new Orb(enemy.x, enemy.y, type, orbSheet, initialVelocity));
+            }
+        }
+    }
+
+    public void spawnBottleToPoint(float startX, float startY, float targetX, float targetY) {
+        BottleProjectile p = new BottleProjectile(potionSheet, startX, startY, targetX, targetY);
+        potions.add(p);
     }
 }
