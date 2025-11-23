@@ -39,6 +39,7 @@ public class GameWorld {
     private Texture candleSheet;
     Texture pixel = new Texture("whitePixel.png");
     Texture potionSheet = new Texture("Spritesheets/nunPotionSpritesheet.png");
+    public Texture explosionTexture = new Texture("Spritesheets/explosionAnimation.png");
 
     // Pathing
     private final float PATH_UPDATE_INTERVAL = 1f; // 1 update per second (BASE)
@@ -55,10 +56,12 @@ public class GameWorld {
 
     public List<Orb> orbs = new ArrayList<>();
     public List<BottleProjectile> potions = new ArrayList<>();
+    public List<Explosion> explosions = new ArrayList<>();
 
     public enum EnemyType {
         TEMPLAR,
-        NUN
+        NUN,
+        PRIEST
     }
 
     // Public UI info to be displayed on screen
@@ -85,7 +88,8 @@ public class GameWorld {
         // Enemies
         enemies = new ArrayList<>();
         //spawnEnemy(EnemyType.TEMPLAR);
-        spawnEnemy(EnemyType.NUN);
+        //spawnEnemy(EnemyType.NUN);
+        spawnEnemy(EnemyType.PRIEST);
         //enemies.add(new Templar(290, 140, this));
         //enemies.add(new Templar(310, 140, this));
         //enemies.add(new Templar(330, 140, this));
@@ -168,6 +172,11 @@ public class GameWorld {
             p.update(delta);
             if (p.isDead()) potions.remove(i);
         }
+        for (int i = explosions.size() - 1; i >= 0; i--) {
+            Explosion e = explosions.get(i);
+            e.update(delta);
+            if (e.done) explosions.remove(i);
+        }
     }
 
     public void render(SpriteBatch batch) {
@@ -235,6 +244,7 @@ public class GameWorld {
         for (Orb orb : orbs) {
             orb.render(batch);
         }
+        for (Explosion e : explosions) e.render(batch);
     }
 
     // Adds a CollisionObject to the objects array of the GameWorld
@@ -419,6 +429,7 @@ public class GameWorld {
         switch (type) {
             case TEMPLAR -> newEnemy = new Templar(spawnX, spawnY, this);
             case NUN -> newEnemy = new Nun(spawnX, spawnY, this);
+            case PRIEST -> newEnemy = new ExplodingPriest(spawnX, spawnY, this);
             default -> newEnemy = new Templar(spawnX, spawnY, this);
         }
 

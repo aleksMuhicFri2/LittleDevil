@@ -15,15 +15,12 @@ public class Nun extends Enemy {
     public float BASE_DAMAGE = 25f;
     public float WAVE_DAMAGE_INCREMENT = 4f;
 
-    // Ranges
     private final float RANGE = 80f;
 
-    // Intelligence-scaled base timings
     private final float BASE_WINDUP = 0.3f;
     private final float BASE_REPOSITION_COOLDOWN = 0.6f;
     private final float BASE_THROW_COOLDOWN = 2.0f;
 
-    // Runtime cooldown timer
     private float throwCooldown = 0f;
 
     private enum NunState {
@@ -47,7 +44,9 @@ public class Nun extends Enemy {
     private boolean facingLeft = false;
     private Texture fullSheet;
 
-    // Intelligence scaling helper
+    // Track previous position to detect real movement
+    private float prevX, prevY;
+
     private float smart(float base) {
         return base / intelligence;
     }
@@ -63,17 +62,13 @@ public class Nun extends Enemy {
 
         currentFrame = idleFrame;
 
-        // Movement
         moveSpeed = 40f;
 
-        // Stats scaling with wave
         HP = BASE_HP + (world.wave - 1) * WAVE_HP_INCREMENT;
         damage = BASE_DAMAGE + (world.wave - 1) * WAVE_DAMAGE_INCREMENT;
 
-        // Intelligence scales from 1 → 3
         intelligence = Math.min(1f + (world.wave - 1) * 0.15f, 3.0f);
 
-        // Drop chances
         guaranteedOrbsCounts = new float[]{2f, 1f, 0f};
         firstExtraChances    = new float[]{0.6f, 0.2f, 0.08f};
         orbProbabilityDecays = new float[]{0.3f, 0.4f, 0.1f};
@@ -87,13 +82,15 @@ public class Nun extends Enemy {
             return;
         }
 
+        // Track previous actual position
+        prevX = x;
+        prevY = y;
+
         if (player.isUnreachable(gameWorld) || player.isOnAltar(gameWorld)) {
 
-            // freeze combat logic
             state = NunState.APPROACH;
             stateTimer = 0f;
 
-            // prevent instant throw
             throwCooldown = Math.max(throwCooldown, 1f);
 
             followPath(gameWorld, delta);
@@ -106,13 +103,10 @@ public class Nun extends Enemy {
             return;
         }
 
-        // Timers
         stateTimer -= delta;
-        walkTimer += delta;
         throwCooldown -= delta;
 
         updateFacing(player);
-        updateAnimation(delta);
 
         switch (state) {
 
@@ -121,36 +115,27 @@ public class Nun extends Enemy {
 
                 if (dist > RANGE) {
                     followPath(gameWorld, delta);
-
-                } else {
-
-                    if (throwCooldown > 0f) {
-                        // waiting until cooldown ends
-                    } else {
-                        changeState(NunState.WINDUP, smart(BASE_WINDUP));
-                    }
+                } else if (throwCooldown <= 0f) {
+                    changeState(NunState.WINDUP, smart(BASE_WINDUP));
                 }
             }
 
             case WINDUP -> {
-                if (stateTimer <= 0f) {
-                    changeState(NunState.THROWING, 0.1f);
-                }
+                if (stateTimer <= 0f) changeState(NunState.THROWING, 0.1f);
             }
 
             case THROWING -> {
                 throwBottle(gameWorld, player);
 
                 throwCooldown = smart(BASE_THROW_COOLDOWN);
-
                 changeState(NunState.REPOSITION, smart(BASE_REPOSITION_COOLDOWN));
             }
 
             case REPOSITION -> {
-
                 float dist = distanceToPlayer(player);
 
                 if (dist < RANGE - 5f) {
+
                     Vector2 dir = new Vector2(x - player.x, y - player.y).nor();
                     moveWithCollision(
                         dir.x * moveSpeed * delta,
@@ -162,14 +147,14 @@ public class Nun extends Enemy {
                     followPath(gameWorld, delta);
                 }
 
-                if (stateTimer <= 0f) {
+                if (stateTimer <= 0f)
                     changeState(NunState.APPROACH, 0.1f);
-                }
             }
         }
 
         applySeparationForce(gameWorld);
         applyKnockback(delta, gameWorld);
+        updateAnimation(delta);
         handleAttack(player, gameScreen, gameWorld);
     }
 
@@ -194,10 +179,8 @@ public class Nun extends Enemy {
         float flightSpeed = 150f;
         float travelTime = distance / flightSpeed;
 
-        float predictMultiplier = intelligence;
-
-        float targetX = player.x + velX * travelTime * predictMultiplier;
-        float targetY = player.y + velY * travelTime * predictMultiplier - player.height * 0.5f;
+        float targetX = player.x + velX * travelTime * intelligence;
+        float targetY = player.y + velY * travelTime * intelligence - player.height * 0.5f;
 
         world.spawnBottleToPoint(x, y, targetX, targetY, damage);
     }
@@ -214,7 +197,7 @@ public class Nun extends Enemy {
 
         float dx = x - player.x;
         float dy = y - player.y;
-        float dist = (float)Math.sqrt(dx * dx + dy * dy);
+        float dist = (float)Math.sqrt(dx*dx + dy*dy);
 
         if (dist > player.range) return;
 
@@ -231,10 +214,7 @@ public class Nun extends Enemy {
         gameWorld.combo++;
     }
 
-    private void nunHit(float dx, float dy,
-                        Player player,
-                        GameScreen gameScreen,
-                        GameWorld gameWorld) {
+    private void nunHit(float dx, float dy, Player player, GameScreen gameScreen, GameWorld gameWorld) {
 
         applyHitKnockback(dx, dy);
         playHitSound();
@@ -283,12 +263,26 @@ public class Nun extends Enemy {
     }
 
     private void updateAnimation(float delta) {
+
         if (hitFlashTime > 0) {
             currentFrame = flashFrame;
             hitFlashTime -= delta;
             return;
         }
 
+        // real movement distance
+        float dx = x - prevX;
+        float dy = y - prevY;
+        float movement = (float)Math.sqrt(dx*dx + dy*dy);
+
+        boolean isMoving = movement > 0.1f;
+
+        if (!isMoving) {
+            currentFrame = idleFrame;
+            return;
+        }
+
+        walkTimer += delta;
         if (walkTimer > WALK_INTERVAL) {
             currentFrame = (currentFrame == idleFrame) ? walkFrame : idleFrame;
             walkTimer = 0f;
@@ -297,9 +291,7 @@ public class Nun extends Enemy {
 
     private void handleDeathFade(float delta, GameWorld gameWorld) {
         alpha -= 0.6f * delta;
-        if (alpha <= 0f) {
-            gameWorld.removeEnemy(this);
-        }
+        if (alpha <= 0f) gameWorld.removeEnemy(this);
     }
 
     @Override
