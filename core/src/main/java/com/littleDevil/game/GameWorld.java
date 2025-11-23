@@ -87,13 +87,10 @@ public class GameWorld {
 
         // Enemies
         enemies = new ArrayList<>();
-        //spawnEnemy(EnemyType.TEMPLAR);
-        //spawnEnemy(EnemyType.NUN);
+        spawnEnemy(EnemyType.TEMPLAR);
+        spawnEnemy(EnemyType.NUN);
         spawnEnemy(EnemyType.PRIEST);
-        //enemies.add(new Templar(290, 140, this));
-        //enemies.add(new Templar(310, 140, this));
-        //enemies.add(new Templar(330, 140, this));
-        //enemies.add(new Templar(350, 140, this));
+
 
         // Altars
         bigAltar = new BigAltar(262, 200, "Spritesheets/bigAltarSpritesheet.png");
