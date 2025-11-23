@@ -8,6 +8,19 @@ import com.badlogic.gdx.graphics.Color;
 
 public class Nun extends Enemy {
 
+    public float BASE_HP = 80f;
+    public float WAVE_HP_INCREMENT = 10f;
+
+    public float BASE_DAMAGE = 40f;
+    public float WAVE_DAMAGE_INCREMENT = 4f;
+
+    private final float RANGE = 80f;
+    private final float WINDUP_TIME = 0.3f;
+    private final float COOLDOWN_TIME = 0.6f;
+
+    private float throwCooldown = 0f;
+    private final float THROW_COOLDOWN = 1.0f;
+
     private enum NunState {
         APPROACH,
         WINDUP,
@@ -17,12 +30,6 @@ public class Nun extends Enemy {
 
     private NunState state = NunState.APPROACH;
     private float stateTimer = 0f;
-
-    private final float RANGE = 80f;
-    private final float WINDUP_TIME = 0.4f;
-    private final float COOLDOWN_TIME = 0.8f;
-    private float throwCooldown = 0f;
-    private final float THROW_COOLDOWN = 1.0f; // or whatever you want
 
     private TextureRegion idleFrame;
     private TextureRegion walkFrame;
@@ -45,17 +52,16 @@ public class Nun extends Enemy {
 
         currentFrame = idleFrame;
 
-        moveSpeed = 38f;
+        moveSpeed = 40f;
 
-        BASE_HP = 75;
-        HP = BASE_HP + (world.wave - 1) * 10;
-        damage = 15f;
+        HP = BASE_HP + (world.wave - 1) * WAVE_HP_INCREMENT;
+        damage = BASE_DAMAGE + (world.wave - 1) * WAVE_DAMAGE_INCREMENT;
 
-        intelligence = 1.0f;
+        intelligence = Math.min(1f + (world.wave - 1) * 0.15f, 3.0f);
 
-        guaranteedOrbsCounts = new float[]{1f, 0f, 0f};
-        firstExtraChances    = new float[]{0.10f, 0f, 0f};
-        orbProbabilityDecays = new float[]{0.3f, 0.2f, 0.1f};
+        guaranteedOrbsCounts = new float[]{2f, 1f, 0f};
+        firstExtraChances    = new float[]{0.6f, 0.2f, 0.08f};
+        orbProbabilityDecays = new float[]{0.3f, 0.4f, 0.1f};
     }
 
     @Override
@@ -162,7 +168,7 @@ public class Nun extends Enemy {
         if (speedSquared < 1f) {
             float tx = player.x;
             float ty = player.y - player.height * 0.5f;
-            world.spawnBottleToPoint(x, y, tx, ty);
+            world.spawnBottleToPoint(x, y, tx, ty, damage);
             return;
         }
 
@@ -177,7 +183,7 @@ public class Nun extends Enemy {
         float targetX = player.x + velX * travelTime * predictMultiplier;
         float targetY = player.y + velY * travelTime * predictMultiplier - player.height * 0.5f;
 
-        world.spawnBottleToPoint(x, y, targetX, targetY);
+        world.spawnBottleToPoint(x, y, targetX, targetY, damage);
     }
 
     @Override

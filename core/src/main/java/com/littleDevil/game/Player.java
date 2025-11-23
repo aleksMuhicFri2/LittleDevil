@@ -121,9 +121,7 @@ public class Player {
         float len = (float)Math.sqrt(moveX * moveX + moveY * moveY);
         if (len > 0) { moveX /= len; moveY /= len; }
 
-        // Stairs check
-        boolean onStairs = isOnStairs(gameWorld);
-        speed = onStairs ? baseSpeed * speedMultiplier * 2f / 3f : baseSpeed * speedMultiplier;
+        speed = isOnStairs(gameWorld) ? baseSpeed * speedMultiplier * 2f / 3f : baseSpeed * speedMultiplier;
 
         // Dash
         if (!isDashing && dashTimer <= 0 && (moveX != 0 || moveY != 0) && Gdx.input.isKeyJustPressed(Input.Keys.SPACE))

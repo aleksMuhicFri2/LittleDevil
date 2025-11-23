@@ -84,7 +84,7 @@ public class GameWorld {
 
         // Enemies
         enemies = new ArrayList<>();
-        spawnEnemy(EnemyType.TEMPLAR);
+        //spawnEnemy(EnemyType.TEMPLAR);
         spawnEnemy(EnemyType.NUN);
         //enemies.add(new Templar(290, 140, this));
         //enemies.add(new Templar(310, 140, this));
@@ -490,8 +490,8 @@ public class GameWorld {
         }
     }
 
-    public void spawnBottleToPoint(float startX, float startY, float targetX, float targetY) {
-        BottleProjectile p = new BottleProjectile(potionSheet, startX, startY, targetX, targetY);
+    public void spawnBottleToPoint(float startX, float startY, float targetX, float targetY, float damage) {
+        BottleProjectile p = new BottleProjectile(potionSheet, startX, startY, targetX, targetY, this, damage);
         potions.add(p);
     }
 }

@@ -92,7 +92,6 @@ public class Templar extends Enemy {
 
             if (player.isUnreachable(gameWorld)) {
 
-                // Force Templar into harmless chase mode
                 state = TemplarState.CHASING;
                 stateTimer = 0f;
 
@@ -280,6 +279,7 @@ public class Templar extends Enemy {
 
         if (overlapX && overlapY) {
             hitPlayerThisBash = true;
+            player.currentHP -= damage;
             bashSound.play(0.2f);
             gameScreen.triggerTimePause(0.2f, 0.2f);
 
