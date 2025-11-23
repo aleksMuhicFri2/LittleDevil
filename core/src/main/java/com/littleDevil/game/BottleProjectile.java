@@ -168,14 +168,6 @@ public class BottleProjectile {
         batch.setColor(1f, 1f, 1f, alpha);
         batch.draw(frame, x - 16, y - 16, 32, 32);
         batch.setColor(1f, 1f, 1f, 1f);
-
-        // DEBUG HITBOX
-        float left = x - hitboxWidth / 2f;
-        float bottom = y - hitboxHeight / 2f;
-
-        batch.setColor(1f, 0f, 0f, 0.4f);
-        batch.draw(world.pixel, left, bottom, hitboxWidth, hitboxHeight);
-        batch.setColor(1f, 1f, 1f, 1f);
     }
 
 

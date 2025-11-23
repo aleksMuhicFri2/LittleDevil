@@ -221,7 +221,7 @@ public class GameWorld {
         renderList.clear();
 
         // For debugging set this to true
-        renderDebug(true, batch);
+        renderDebug(false, batch);
 
         // Renders shield over anything
         for (Enemy e : enemies) {

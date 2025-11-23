@@ -8,18 +8,23 @@ import com.badlogic.gdx.graphics.Color;
 
 public class Nun extends Enemy {
 
-    public float BASE_HP = 80f;
+    // Scaling stats
+    public float BASE_HP = 140f;
     public float WAVE_HP_INCREMENT = 10f;
 
-    public float BASE_DAMAGE = 40f;
+    public float BASE_DAMAGE = 25f;
     public float WAVE_DAMAGE_INCREMENT = 4f;
 
+    // Ranges
     private final float RANGE = 80f;
-    private final float WINDUP_TIME = 0.3f;
-    private final float COOLDOWN_TIME = 0.6f;
 
+    // Intelligence-scaled base timings
+    private final float BASE_WINDUP = 0.3f;
+    private final float BASE_REPOSITION_COOLDOWN = 0.6f;
+    private final float BASE_THROW_COOLDOWN = 2.0f;
+
+    // Runtime cooldown timer
     private float throwCooldown = 0f;
-    private final float THROW_COOLDOWN = 1.0f;
 
     private enum NunState {
         APPROACH,
@@ -31,6 +36,7 @@ public class Nun extends Enemy {
     private NunState state = NunState.APPROACH;
     private float stateTimer = 0f;
 
+    // Animation
     private TextureRegion idleFrame;
     private TextureRegion walkFrame;
     private TextureRegion flashFrame;
@@ -40,6 +46,11 @@ public class Nun extends Enemy {
 
     private boolean facingLeft = false;
     private Texture fullSheet;
+
+    // Intelligence scaling helper
+    private float smart(float base) {
+        return base / intelligence;
+    }
 
     public Nun(float x, float y, GameWorld world) {
         super(x, y, "Spritesheets/nunSpritesheet.png", world);
@@ -52,13 +63,17 @@ public class Nun extends Enemy {
 
         currentFrame = idleFrame;
 
+        // Movement
         moveSpeed = 40f;
 
+        // Stats scaling with wave
         HP = BASE_HP + (world.wave - 1) * WAVE_HP_INCREMENT;
         damage = BASE_DAMAGE + (world.wave - 1) * WAVE_DAMAGE_INCREMENT;
 
+        // Intelligence scales from 1 → 3
         intelligence = Math.min(1f + (world.wave - 1) * 0.15f, 3.0f);
 
+        // Drop chances
         guaranteedOrbsCounts = new float[]{2f, 1f, 0f};
         firstExtraChances    = new float[]{0.6f, 0.2f, 0.08f};
         orbProbabilityDecays = new float[]{0.3f, 0.4f, 0.1f};
@@ -78,10 +93,9 @@ public class Nun extends Enemy {
             state = NunState.APPROACH;
             stateTimer = 0f;
 
-            // prevent instant throw the moment player leaves the zone
+            // prevent instant throw
             throwCooldown = Math.max(throwCooldown, 1f);
 
-            // movement is still allowed
             followPath(gameWorld, delta);
 
             applySeparationForce(gameWorld);
@@ -92,7 +106,7 @@ public class Nun extends Enemy {
             return;
         }
 
-
+        // Timers
         stateTimer -= delta;
         walkTimer += delta;
         throwCooldown -= delta;
@@ -109,10 +123,11 @@ public class Nun extends Enemy {
                     followPath(gameWorld, delta);
 
                 } else {
+
                     if (throwCooldown > 0f) {
-                        // stay in approach, cooldown not done
+                        // waiting until cooldown ends
                     } else {
-                        changeState(NunState.WINDUP, WINDUP_TIME);
+                        changeState(NunState.WINDUP, smart(BASE_WINDUP));
                     }
                 }
             }
@@ -125,20 +140,25 @@ public class Nun extends Enemy {
 
             case THROWING -> {
                 throwBottle(gameWorld, player);
-                throwCooldown = THROW_COOLDOWN;
-                changeState(NunState.REPOSITION, COOLDOWN_TIME);
+
+                throwCooldown = smart(BASE_THROW_COOLDOWN);
+
+                changeState(NunState.REPOSITION, smart(BASE_REPOSITION_COOLDOWN));
             }
 
             case REPOSITION -> {
+
                 float dist = distanceToPlayer(player);
 
                 if (dist < RANGE - 5f) {
                     Vector2 dir = new Vector2(x - player.x, y - player.y).nor();
-                    moveWithCollision(dir.x * moveSpeed * delta,
+                    moveWithCollision(
+                        dir.x * moveSpeed * delta,
                         dir.y * moveSpeed * delta,
-                        gameWorld);
-                }
-                else if (dist > RANGE + 5f) {
+                        gameWorld
+                    );
+
+                } else if (dist > RANGE + 5f) {
                     followPath(gameWorld, delta);
                 }
 
@@ -159,26 +179,22 @@ public class Nun extends Enemy {
     }
 
     private void throwBottle(GameWorld world, Player player) {
-        // Player movement vector per second
+
         float velX = (player.x - player.prevX) / Gdx.graphics.getDeltaTime();
         float velY = (player.y - player.prevY) / Gdx.graphics.getDeltaTime();
 
-        // If player is basically not moving → no prediction at all
         float speedSquared = velX * velX + velY * velY;
+
         if (speedSquared < 1f) {
-            float tx = player.x;
-            float ty = player.y - player.height * 0.5f;
-            world.spawnBottleToPoint(x, y, tx, ty, damage);
+            world.spawnBottleToPoint(x, y, player.x, player.y - player.height * 0.5f, damage);
             return;
         }
 
-        // Estimate how long the bottle will fly (same as BottleProjectile uses)
         float distance = Vector2.dst(x, y, player.x, player.y);
-        float flightSpeed = 150f; // same speed you set in the bottle code
+        float flightSpeed = 150f;
         float travelTime = distance / flightSpeed;
 
-        // Prediction: lead based on velocity * travelTime * intelligence
-        float predictMultiplier = intelligence * 1.0f; // adjust if needed
+        float predictMultiplier = intelligence;
 
         float targetX = player.x + velX * travelTime * predictMultiplier;
         float targetY = player.y + velY * travelTime * predictMultiplier - player.height * 0.5f;
@@ -224,7 +240,6 @@ public class Nun extends Enemy {
         playHitSound();
         gameScreen.triggerTimePause(0.1f, 0.15f);
 
-        // simple damage — nun has no front/back reduction
         float damageMultiplier = player.damageMultiplier;
 
         boolean crit = Math.random() <= player.critChance;
