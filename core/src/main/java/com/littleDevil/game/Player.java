@@ -94,7 +94,7 @@ public class Player {
         displayXp = currentXp;
     }
 
-    public void update(float delta, GameWorld world) {
+    public void update(float delta, GameWorld gameWorld) {
         // Update timers
         if (attackCooldownTimer > 0f) attackCooldownTimer -= delta;
         if (dashTimer > 0) dashTimer -= delta;
@@ -122,7 +122,7 @@ public class Player {
         if (len > 0) { moveX /= len; moveY /= len; }
 
         // Stairs check
-        boolean onStairs = isOnStairs(world);
+        boolean onStairs = isOnStairs(gameWorld);
         speed = onStairs ? baseSpeed * speedMultiplier * 2f / 3f : baseSpeed * speedMultiplier;
 
         // Dash
@@ -130,7 +130,7 @@ public class Player {
             performDash(moveX, moveY);
 
         // Attack
-        if (!isDashing && !isAttacking && !isOnStairs(world) && attackCooldownTimer <= 0 && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT))
+        if (!isDashing && !isAttacking && !isOnStairs(gameWorld) && !isUnreachable(gameWorld) && attackCooldownTimer <= 0 && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT))
             performAttack();
 
         // Apply movement
@@ -151,8 +151,8 @@ public class Player {
         }
 
         // Collision sliding
-        if (isBlocked(x, prevY, world)) x = prevX;
-        if (isBlocked(prevX, y, world)) y = prevY;
+        if (isBlocked(x, prevY, gameWorld)) x = prevX;
+        if (isBlocked(prevX, y, gameWorld)) y = prevY;
 
         // Walking sound
         boolean moving = moveX != 0 || moveY != 0;
@@ -169,30 +169,31 @@ public class Player {
         }
 
         // Apply knockback motion
-        updateKnockback(delta, world);
+        updateKnockback(delta, gameWorld);
 
         // Update animation
         updateAnimation(delta, moving);
     }
 
     // --- Collision helpers ---
-    private boolean checkCollision(float testX, float testY, GameWorld.TileType type, GameWorld world) {
-        int left = (int)((testX + collisionOffsetX) / world.tileSize);
-        int right = (int)((testX + collisionOffsetX + collisionWidth) / world.tileSize);
-        int bottom = (int)((testY + collisionOffsetY) / world.tileSize);
-        int top = (int)((testY + collisionOffsetY + collisionHeight) / world.tileSize);
+    private boolean checkCollision(float testX, float testY, GameWorld.TileType type, GameWorld gameWorld) {
+        int left = (int)((testX + collisionOffsetX) / gameWorld.tileSize);
+        int right = (int)((testX + collisionOffsetX + collisionWidth) / gameWorld.tileSize);
+        int bottom = (int)((testY + collisionOffsetY) / gameWorld.tileSize);
+        int top = (int)((testY + collisionOffsetY + collisionHeight) / gameWorld.tileSize);
 
         for (int y = bottom; y <= top; y++)
             for (int x = left; x <= right; x++)
-                if (world.isTileType(x, y, type)) return true;
+                if (gameWorld.isTileType(x, y, type)) return true;
         return false;
     }
 
     // helper functions that return if player is interacting with the environment
-    public boolean isBlocked(float x, float y, GameWorld world) { return checkCollision(x, y, GameWorld.TileType.BLOCK, world); }
-    public boolean isOnStairs(GameWorld world) { return checkCollision(x, y, GameWorld.TileType.STAIRS, world); }
-    public boolean isOnBoost(GameWorld world) { return checkCollision(x, y, GameWorld.TileType.BOOST, world); }
-    public boolean isOnAltar(GameWorld world) { return checkCollision(x, y, GameWorld.TileType.ALTAR, world); }
+    public boolean isBlocked(float x, float y, GameWorld gameWorld) { return checkCollision(x, y, GameWorld.TileType.BLOCK, gameWorld); }
+    public boolean isOnStairs(GameWorld gameWorld) { return checkCollision(x, y, GameWorld.TileType.STAIRS, gameWorld); }
+    public boolean isUnreachable(GameWorld gameWorld) { return checkCollision(x, y, GameWorld.TileType.BLOCKENEMY, gameWorld); }
+    public boolean isOnBoost(GameWorld gameWorld) { return checkCollision(x, y, GameWorld.TileType.BOOST, gameWorld); }
+    public boolean isOnAltar(GameWorld gameWorld) { return checkCollision(x, y, GameWorld.TileType.ALTAR, gameWorld); }
 
     // --- Animation of player ---
     private void updateAnimation(float delta, boolean moving) {
@@ -272,16 +273,16 @@ public class Player {
         }
     }
 
-    private void updateKnockback(float delta, GameWorld world) {
+    private void updateKnockback(float delta, GameWorld gameWorld) {
         if (knockbackX == 0 && knockbackY == 0) return;
 
         float nextX = x + knockbackX * delta;
         float nextY = y + knockbackY * delta;
 
-        if (!isBlocked(nextX, y, world)) x = nextX;
+        if (!isBlocked(nextX, y, gameWorld)) x = nextX;
         else knockbackX = 0;
 
-        if (!isBlocked(x, nextY, world)) y = nextY;
+        if (!isBlocked(x, nextY, gameWorld)) y = nextY;
         else knockbackY = 0;
 
         knockbackX = approachZero(knockbackX, knockbackDecay * delta);

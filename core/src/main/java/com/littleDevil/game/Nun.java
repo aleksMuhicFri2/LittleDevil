@@ -66,6 +66,27 @@ public class Nun extends Enemy {
             return;
         }
 
+        if (player.isUnreachable(gameWorld)) {
+
+            // freeze combat logic
+            state = NunState.APPROACH;
+            stateTimer = 0f;
+
+            // prevent instant throw the moment player leaves the zone
+            throwCooldown = Math.max(throwCooldown, 1f);
+
+            // movement is still allowed
+            followPath(gameWorld, delta);
+
+            applySeparationForce(gameWorld);
+            applyKnockback(delta, gameWorld);
+            updateFacing(player);
+            updateAnimation(delta);
+
+            return;
+        }
+
+
         stateTimer -= delta;
         walkTimer += delta;
         throwCooldown -= delta;
@@ -82,12 +103,9 @@ public class Nun extends Enemy {
                     followPath(gameWorld, delta);
 
                 } else {
-                    // in range but not allowed to throw yet
                     if (throwCooldown > 0f) {
-                        // stay in APPROACH, keep moving/hovering at range
-                        // (do nothing, she won't enter WINDUP)
+                        // stay in approach, cooldown not done
                     } else {
-                        // cooldown finished → begin throw sequence
                         changeState(NunState.WINDUP, WINDUP_TIME);
                     }
                 }
@@ -101,7 +119,7 @@ public class Nun extends Enemy {
 
             case THROWING -> {
                 throwBottle(gameWorld, player);
-                throwCooldown = THROW_COOLDOWN;      // start cooldown
+                throwCooldown = THROW_COOLDOWN;
                 changeState(NunState.REPOSITION, COOLDOWN_TIME);
             }
 

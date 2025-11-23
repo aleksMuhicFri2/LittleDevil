@@ -84,7 +84,7 @@ public class GameWorld {
 
         // Enemies
         enemies = new ArrayList<>();
-        //spawnEnemy(EnemyType.TEMPLAR);
+        spawnEnemy(EnemyType.TEMPLAR);
         spawnEnemy(EnemyType.NUN);
         //enemies.add(new Templar(290, 140, this));
         //enemies.add(new Templar(310, 140, this));
@@ -281,16 +281,32 @@ public class GameWorld {
                 ((Templar) e).renderShieldHitbox(batch, pixel);
             }
         }
-        // Render collision grid
-        batch.setColor(1f, 0f, 0f, 0.3f); // red semi-transparent
+
+        // Render tile debug overlay
         for (int y = 0; y < heightInTiles; y++) {
             for (int x = 0; x < widthInTiles; x++) {
-                if (collisionGrid[y][x]) {
-                    batch.draw(pixel, x * tileSize, y * tileSize, tileSize, tileSize);
+
+                int tile = grid[y][x];
+
+                // pick color based on tile value
+                switch (tile) {
+                    case 1, 2 -> batch.setColor(1f, 0f, 0f, 0.35f);       // BLOCK → red
+                    case 3     -> batch.setColor(0.6f, 0f, 1f, 0.35f);     // ALTAR → purple
+                    case 4     -> batch.setColor(1f, 1f, 0f, 0.35f);       // BOOST → yellow
+                    case 5     -> batch.setColor(0.2f, 0.4f, 1f, 0.35f);   // STAIRS → blue
+                    case 6     -> batch.setColor(1f, 0.5f, 0f, 0.35f);     // BLOCKENEMY → orange
+                    default    -> {
+                        continue;                                // EMPTY → skip drawing
+                    }
                 }
+
+                // draw the tile
+                batch.draw(pixel, x * tileSize, y * tileSize, tileSize, tileSize);
             }
         }
-        batch.setColor(1f, 1f, 1f, 1f); // reset color
+
+        batch.setColor(1f, 1f, 1f, 1f);
+
     }
 
     // Functions to display UI in GameScreen Class
@@ -351,71 +367,62 @@ public class GameWorld {
 
     public void spawnEnemy(EnemyType type) {
 
-        float enemyWidth = 32f;  // replace with your enemy width
-        float enemyHeight = 32f; // replace with your enemy height
-        float offset = tileSize * 3;
+        float enemyWidth = 32f;
+        float enemyHeight = 32f;
 
-        float spawnX, spawnY;
-        int attempts = 0;
-        boolean valid = false;
+        float spawnX = 0;
+        float spawnY = 0;
 
-        do {
-            attempts++;
-            int side = (int) (Math.random() * 4); // 0=top,1=bottom,2=left,3=right
+        // Pick a side: 0=top, 1=bottom, 2=left, 3=right
+        int side = (int)(Math.random() * 4);
 
-            switch (side) {
-                case 0 -> { // Top
-                    spawnX = offset + (float)(Math.random() * (mapWidth - 2 * offset - enemyWidth)) + enemyWidth/2f;
-                    spawnY = mapHeight - offset - enemyHeight/2f;
-                }
-                case 1 -> { // Bottom
-                    spawnX = offset + (float)(Math.random() * (mapWidth - 2 * offset - enemyWidth)) + enemyWidth/2f;
-                    spawnY = offset + enemyHeight/2f;
-                }
-                case 2 -> { // Left
-                    spawnX = offset + enemyWidth/2f;
-                    spawnY = offset + (float)(Math.random() * (mapHeight - 2 * offset - enemyHeight)) + enemyHeight/2f;
-                }
-                case 3 -> { // Right
-                    spawnX = mapWidth - offset - enemyWidth/2f;
-                    spawnY = offset + (float)(Math.random() * (mapHeight - 2 * offset - enemyHeight)) + enemyHeight/2f;
-                }
-                default -> { // fallback
-                    spawnX = mapWidth/2f;
-                    spawnY = mapHeight/2f;
-                }
+        switch (side) {
+            case 0 -> { // Top center
+                spawnX = mapWidth / 2f;
+                spawnY = mapHeight - enemyHeight;
             }
-
-            // Clamp just in case
-            spawnX = MathUtils.clamp(spawnX, enemyWidth/2f, mapWidth - enemyWidth/2f);
-            spawnY = MathUtils.clamp(spawnY, enemyHeight/2f, mapHeight - enemyHeight/2f);
-
-            // Check if the spawn position collides with any collision object
-            valid = true;
-            for (CollisionObject obj : objects) {
-                if (spawnX + enemyWidth > obj.posX && spawnX - enemyWidth/2f < obj.posX + obj.width &&
-                    spawnY + enemyHeight > obj.posY && spawnY - enemyHeight/2f < obj.posY + obj.height) {
-                    valid = false;
-                    break;
-                }
+            case 1 -> { // Bottom center
+                spawnX = mapWidth / 2f;
+                spawnY = enemyHeight;
             }
-
-        } while (!valid && attempts < 10); // give up after 50 tries to avoid infinite loop
-
-        // Create enemy only if a valid position was found
-        if (valid) {
-            Enemy newEnemy;
-
-            switch (type) {
-                case TEMPLAR -> newEnemy = new Templar(spawnX, spawnY, this);
-                case NUN -> newEnemy = new Nun(spawnX, spawnY, this);
-                default -> newEnemy = new Templar(spawnX, spawnY, this);
+            case 2 -> { // Left center
+                spawnX = enemyWidth;
+                spawnY = mapHeight / 2f;
             }
-
-            enemies.add(newEnemy);
-        } else {
-            Gdx.app.log("SpawnEnemy", "Failed to find valid spawn position after 50 attempts!");
+            case 3 -> { // Right center
+                spawnX = mapWidth - enemyWidth;
+                spawnY = mapHeight / 2f;
+            }
         }
+
+        // Safety clamp
+        spawnX = MathUtils.clamp(spawnX, enemyWidth / 2f, mapWidth - enemyWidth / 2f);
+        spawnY = MathUtils.clamp(spawnY, enemyHeight / 2f, mapHeight - enemyHeight / 2f);
+
+        // Collision check (optional but kept from your old logic)
+        boolean valid = true;
+        for (CollisionObject obj : objects) {
+            if (spawnX + enemyWidth > obj.posX && spawnX - enemyWidth/2f < obj.posX + obj.width &&
+                spawnY + enemyHeight > obj.posY && spawnY - enemyHeight/2f < obj.posY + obj.height) {
+
+                valid = false;
+                break;
+            }
+        }
+
+        if (!valid) {
+            Gdx.app.log("SpawnEnemy", "Edge spawn blocked by collision object.");
+            return;
+        }
+
+        Enemy newEnemy;
+        switch (type) {
+            case TEMPLAR -> newEnemy = new Templar(spawnX, spawnY, this);
+            case NUN -> newEnemy = new Nun(spawnX, spawnY, this);
+            default -> newEnemy = new Templar(spawnX, spawnY, this);
+        }
+
+        enemies.add(newEnemy);
     }
 
 

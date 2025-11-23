@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public abstract class Enemy {
 
@@ -87,7 +88,7 @@ public abstract class Enemy {
         boolean pathEmpty = (currentPath == null || currentPath.isEmpty());
         boolean pathEnded = (!pathEmpty && currentTargetIndex >= currentPath.size());
 
-        // Update when timer expires, or path is empty/finished
+        // Update only when needed
         if (!timeToUpdate && !pathEmpty && !pathEnded) return;
 
         pathTimer = 0f;
@@ -95,23 +96,54 @@ public abstract class Enemy {
         float enemyCenterX = x + collisionOffsetX + collisionWidth / 2f;
         float enemyCenterY = y + collisionOffsetY + collisionHeight / 2f;
 
+        // Dynamic path update offset
         float dx = enemyCenterX - playerCenterX;
         float dy = enemyCenterY - playerCenterY;
         float dist = (float) Math.sqrt(dx * dx + dy * dy);
 
         float distanceFactor = Math.min(dist / 300f, 1f);
         pathUpdateOffset = 0.2f + distanceFactor * (float) Math.random() * 2f;
+
         int startX = (int) (enemyCenterX / gameWorld.tileSize);
         int startY = (int) (enemyCenterY / gameWorld.tileSize);
-        int targetX = (int) (playerCenterX / gameWorld.tileSize);
-        int targetY = (int) (playerCenterY / gameWorld.tileSize);
 
+        int targetX;
+        int targetY;
+
+        if (player.isUnreachable(gameWorld)) {
+
+            // Pick a random valid tile
+            Random rand = new Random();
+            int rx = startX;
+            int ry = startY;
+
+            for (int i = 0; i < 20; i++) {
+                rx = rand.nextInt(gameWorld.widthInTiles);
+                ry = rand.nextInt(gameWorld.heightInTiles);
+
+                if (!gameWorld.collisionGrid[ry][rx]) {
+                    break;
+                }
+            }
+
+            targetX = rx;
+            targetY = ry;
+
+        } else {
+
+            // Normal case: aim at player
+            targetX = (int) (playerCenterX / gameWorld.tileSize);
+            targetY = (int) (playerCenterY / gameWorld.tileSize);
+        }
+
+        // Preserve old next node for smooth continuation
         Node oldNextNode = null;
         if (currentPath != null && !currentPath.isEmpty()
             && currentTargetIndex < currentPath.size()) {
             oldNextNode = currentPath.get(currentTargetIndex);
         }
 
+        // Compute the path
         currentPath = pathfinder.findPath(startX, startY, targetX, targetY);
 
         if (currentPath != null && !currentPath.isEmpty()) {
@@ -120,6 +152,7 @@ public abstract class Enemy {
             currentTargetIndex = 0;
         }
     }
+
 
     // Gets the second-closest node so the player doesn't stop
     private int getClosestIndex(Node oldNextNode, GameWorld gameWorld) {

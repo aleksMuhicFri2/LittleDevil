@@ -63,8 +63,10 @@ public class CollisionObjectsData {
         // Right border
         new CollisionObject("BorderRight",600 - 4,0,1,400,0,0,0,0,1),
 
-        new CollisionObject("EnemyBlockade", 276, 152, 40, 1, 0, 0, 0, 0, 6),
-
-        // TODO make altar zone where we stop pathfinding
+        // Pathfinding blocks
+        new CollisionObject("EnemyBlockedStairs", 280, 152, 36, 32, 0, 0, 0, 0, 6),
+        new CollisionObject("EnemyBlockedDown", 240, 184, 116, 40, 0, 0, 0, 0, 6),
+        new CollisionObject("EnemyBlockedMiddle", 248, 224, 100, 12, 0, 0, 0, 0, 6),
+        new CollisionObject("EnemyBlockedTop", 268, 236, 60, 12, 0, 0, 0, 0, 6)
     };
 }

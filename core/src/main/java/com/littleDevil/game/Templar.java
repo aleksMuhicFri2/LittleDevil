@@ -87,16 +87,38 @@ public class Templar extends Enemy {
 
     @Override
     public void update(float delta, Player player, GameWorld gameWorld, GameScreen gameScreen) {
-        if(isAlive) { // updates states and animations and positions if alive
+
+        if (isAlive) {
+
+            if (player.isUnreachable(gameWorld)) {
+
+                // Force Templar into harmless chase mode
+                state = TemplarState.CHASING;
+                stateTimer = 0f;
+
+                // Prevent an instant bash the millisecond player walks out
+                bashCooldownTimer = Math.max(bashCooldownTimer, 1f);
+
+                // Move normally
+                followPath(gameWorld, delta);
+                applySeparationForce(gameWorld);
+                applyKnockback(delta, gameWorld);
+                updateAnimation(delta, player);
+
+                return; // Skip ALL attack logic
+            }
+
             if (bashCooldownTimer > 0) bashCooldownTimer -= delta;
 
             checkBashHit(player, gameScreen);
             stateTimer -= delta;
 
             switch (state) {
+
                 case CHASING -> {
                     followPath(gameWorld, delta);
                     currentShieldFrame = shieldFrames[0];
+
                     if (distanceToPlayer(player) < ATTACK_RANGE && bashCooldownTimer <= 0f) {
                         state = TemplarState.CHANNELING;
                         stateTimer = CHANNEL_TIME;
@@ -108,8 +130,10 @@ public class Templar extends Enemy {
                     int frameIndex = Math.min(4, (int)(progress * 5f));
                     currentShieldFrame = shieldFrames[frameIndex];
 
-                    // delays choosing the direction based on intelligence (max 10)
-                    if (stateTimer >= CHANNEL_TIME - CHANNEL_TIME * (Math.min(intelligence, 10) / 10)) bashDir.set(player.x - x, player.y - y).nor();
+                    // smarter direction prediction
+                    if (stateTimer >= CHANNEL_TIME - CHANNEL_TIME * (Math.min(intelligence, 10) / 10)) {
+                        bashDir.set(player.x - x, player.y - y).nor();
+                    }
 
                     if (stateTimer <= 0f) {
                         state = TemplarState.BASHING;
@@ -120,6 +144,7 @@ public class Templar extends Enemy {
                 case BASHING -> {
                     float progress = 1f - stateTimer / BASH_DURATION;
                     float decel = 1f - (progress * progress);
+
                     float moveX = bashDir.x * BASH_SPEED * decel * delta;
                     float moveY = bashDir.y * BASH_SPEED * decel * delta;
 
@@ -145,20 +170,20 @@ public class Templar extends Enemy {
                     if (stateTimer <= 0f) state = TemplarState.CHASING;
                 }
             }
+
             applySeparationForce(gameWorld);
             applyKnockback(delta, gameWorld);
             handleAttack(player, gameScreen, gameWorld);
             updateAnimation(delta, player);
 
-        } else { // moves on to death animation if killed
+        } else {
+            // DEATH ANIMATION
             if (helmetY == 0f) helmetY = y;
-            float groundY = helmetY - GROUND_OFFSET; // fixed ground position
+            float groundY = helmetY - GROUND_OFFSET;
 
-            // Apply gravity and speed up helmet
             helmetVelocity += GRAVITY * delta;
-            y -= helmetVelocity * delta; // move down
+            y -= helmetVelocity * delta;
 
-            // Stop at ground and fade away
             if (y <= groundY) {
                 y = groundY;
                 helmetVelocity = 0f;
@@ -171,6 +196,7 @@ public class Templar extends Enemy {
             }
         }
     }
+
 
     // Handles what happens when the enemy is hit
     @Override
