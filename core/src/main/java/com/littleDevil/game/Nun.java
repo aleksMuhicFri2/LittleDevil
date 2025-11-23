@@ -87,7 +87,7 @@ public class Nun extends Enemy {
             return;
         }
 
-        if (player.isUnreachable(gameWorld)) {
+        if (player.isUnreachable(gameWorld) || player.isOnAltar(gameWorld)) {
 
             // freeze combat logic
             state = NunState.APPROACH;

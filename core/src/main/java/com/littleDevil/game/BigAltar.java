@@ -1,5 +1,7 @@
 package com.littleDevil.game;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -12,11 +14,17 @@ public class BigAltar {
 
     private float x, y;
     private float animationTimer = 0f;
-    private float frameDuration = 0.2f; // seconds per frame
+    private float frameDuration = 0.2f;
     private int frameIndex = 0;
     private int totalFrames = 10;
 
     private boolean reversing = false;
+
+    // Sound when candle lights
+    private Sound candleLightSound;
+
+    // Track state so we don't replay sound
+    private boolean[] candleLit = new boolean[5];
 
     public CollisionObject interactionBox = new CollisionObject(
         "BigAltarInteractionBox",
@@ -38,36 +46,40 @@ public class BigAltar {
         spriteSheet = new Texture(spriteSheetPath);
         spriteSheet.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
-        // 10 frames horizontally, each 80×64 px
+        // Load animation frames
         frames = new TextureRegion[totalFrames];
         for (int i = 0; i < totalFrames; i++) {
             frames[i] = new TextureRegion(spriteSheet, i * 80, 0, 80, 64);
         }
 
         currentFrame = frames[0];
+
+        // Load sound
+        candleLightSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/candleStartSound.mp3"));
     }
 
     public void update(float delta, Player player, GameWorld gameWorld) {
         animationTimer += delta;
 
-        if (animationTimer < frameDuration) return; // wait for next frame
+        if (animationTimer < frameDuration) return;
         animationTimer = 0f;
 
-        // --- Handle entering or staying inside ---
+        // --- Player on altar ---
         if (player.isOnAltar(gameWorld)) {
+
             if (!reversing) {
                 frameIndex++;
+
                 if (frameIndex >= 8) {
-                    // TODO gameWorld.openUpgrades()
+                    // altar fully opened, loops 8-9-10
                 }
-                // Loop between 8–9–10 when fully activated
                 if (frameIndex > 9) frameIndex = 8;
+
             } else {
-                // If reversing but player re-enters, resume forward direction
                 reversing = false;
             }
         }
-        // --- Handle stepping out ---
+        // --- Player left altar ---
         else {
             if (frameIndex > 0) {
                 reversing = true;
@@ -77,17 +89,39 @@ public class BigAltar {
             }
         }
 
-        // Clamp frame index
+        // Clamp
         frameIndex = Math.max(0, Math.min(frameIndex, totalFrames - 1));
         currentFrame = frames[frameIndex];
 
-        // --- Handle candle lights (interpolated alpha) ---
-        // 5 lights correspond to frameIndex 1–6
+        // --- Candle light transitions ---
+        // Candles correspond to frameIndex 1–6
         for (int i = 0; i < 5; i++) {
+
             int lightIndex = 14 + i;
             float targetAlpha = (frameIndex >= i + 1) ? 0.7f : 0f;
-            // Interpolate alpha smoothly
-            LightData.lightObjects[lightIndex].alpha += (targetAlpha - LightData.lightObjects[lightIndex].alpha) * 20f * delta;
+
+            // Smooth interpolate
+            LightData.lightObjects[lightIndex].alpha +=
+                (targetAlpha - LightData.lightObjects[lightIndex].alpha) * 20f * delta;
+
+            boolean shouldBeLit = frameIndex >= i + 1;
+
+            // Play sound ONLY on the first candle (i == 0)
+            if (i == 0 && shouldBeLit && !candleLit[0]) {
+                float pitch = 0.85f + (float)Math.random() * 0.3f;
+                candleLightSound.play(0.05f, pitch, 0f);
+                candleLit[0] = true;
+            }
+
+            // Track lit state for all candles (but do not play sound for 1–4)
+            if (shouldBeLit && !candleLit[i]) {
+                candleLit[i] = true;
+            }
+
+            // Reset when turning off
+            if (!shouldBeLit && candleLit[i]) {
+                candleLit[i] = false;
+            }
         }
     }
 
@@ -97,6 +131,7 @@ public class BigAltar {
 
     public void dispose() {
         spriteSheet.dispose();
+        candleLightSound.dispose();
     }
 
     public float getX() { return x; }

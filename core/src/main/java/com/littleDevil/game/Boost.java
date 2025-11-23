@@ -1,5 +1,7 @@
 package com.littleDevil.game;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
@@ -7,6 +9,8 @@ import com.badlogic.gdx.math.MathUtils;
 public class Boost {
     // CLASS USED TO DESCRIBE BOOSTS
     public enum Type { SPEED, DAMAGE, REGEN, SUPER }
+
+    private Sound pickupSound;
 
     private final Type type;
     private float x, y;
@@ -22,6 +26,8 @@ public class Boost {
         this.y = y;
         this.baseY = y;
         this.texture = texture;
+
+        pickupSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/boostSound.mp3"));
     }
 
     public void update(float delta) {
@@ -40,6 +46,11 @@ public class Boost {
 
     public void applyEffect(Player player) {
         pickedUp = true;
+
+        // Play pickup sound with random pitch variation
+        float pitch = 0.9f + MathUtils.random() * 0.15f;
+        pickupSound.play(0.05f, pitch, 0f);
+
         switch (type) {
             case SPEED:
                 player.boostSpeed(2f, 1.5f);
@@ -58,5 +69,6 @@ public class Boost {
 
     public void dispose() {
         texture.dispose();
+        pickupSound.dispose();
     }
 }
