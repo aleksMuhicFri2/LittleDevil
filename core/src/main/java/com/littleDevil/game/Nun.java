@@ -69,9 +69,9 @@ public class Nun extends Enemy {
 
         intelligence = Math.min(1f + (world.wave - 1) * 0.15f, 3.0f);
 
-        guaranteedOrbsCounts = new float[]{2f, 1f, 0f};
-        firstExtraChances    = new float[]{0.6f, 0.2f, 0.08f};
-        orbProbabilityDecays = new float[]{0.3f, 0.4f, 0.1f};
+        guaranteedOrbsCounts = new float [] {2, 1, 0};
+        firstExtraChances = new float [] {0.55f, 0.20f, 0.03f};
+        orbProbabilityDecays = new float [] {0.35f, 0.40f, 0.40f};
     }
 
     @Override
@@ -211,7 +211,8 @@ public class Nun extends Enemy {
         hitThisAttack = true;
 
         nunHit(dx, dy, player, gameScreen, gameWorld);
-        gameWorld.combo++;
+        gameWorld.combo += 1;
+        gameWorld.timeSinceLastHit = 0f;
     }
 
     private void nunHit(float dx, float dy, Player player, GameScreen gameScreen, GameWorld gameWorld) {

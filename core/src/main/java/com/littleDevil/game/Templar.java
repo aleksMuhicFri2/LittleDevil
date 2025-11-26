@@ -72,9 +72,9 @@ public class Templar extends Enemy {
         hitboxWidth = 24;
         hitboxHeight = 20;
 
-        guaranteedOrbsCounts = new float[] {3f, 0f, 0f};
-        firstExtraChances = new float[] {0.5f, 0.4f, 0.05f};
-        orbProbabilityDecays = new float[] {0.3f, 0.2f, 0.1f};
+        guaranteedOrbsCounts = new float [] {2, 0, 0};
+        firstExtraChances = new float [] {0.30f, 0.10f, 0.02f};
+        orbProbabilityDecays = new float [] {0.50f, 0.50f, 0.50f};
 
         templarFrames = new TextureRegion[4];
         for (int i = 0; i < 4; i++) templarFrames[i] = new TextureRegion(spriteSheet, i * 32, 0, 32, 32);
@@ -215,6 +215,7 @@ public class Templar extends Enemy {
                     boolean applyKnockbackFlag = state != TemplarState.CHANNELING && state != TemplarState.BASHING;
                     templarHit(dx, dy, applyKnockbackFlag, 0.1f, 0.15f, player, gameScreen, gameWorld);
                     gameWorld.combo += 1;
+                    gameWorld.timeSinceLastHit = 0f;
                 }
             }
         }

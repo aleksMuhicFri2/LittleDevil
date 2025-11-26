@@ -46,8 +46,8 @@ public class ExplodingPriest extends Enemy {
 
     private final Sound explodeSound;
 
-    public ExplodingPriest(float x, float y, GameWorld world) {
-        super(x, y, "Spritesheets/priestSpritesheet.png", world);
+    public ExplodingPriest(float x, float y, GameWorld gameWorld) {
+        super(x, y, "Spritesheets/priestSpritesheet.png", gameWorld);
 
         spriteSheet.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
@@ -59,25 +59,25 @@ public class ExplodingPriest extends Enemy {
 
         moveSpeed = 50f;
 
-        HP = BASE_HP + (world.wave - 1) * 14f;
-        damage = BASE_DAMAGE + (world.wave - 1) * 3f;
+        HP = BASE_HP + (gameWorld.wave - 1) * 14f;
+        damage = BASE_DAMAGE + (gameWorld.wave - 1) * 3f;
 
         intelligence = 1.6f; // faster blinking
 
-        guaranteedOrbsCounts = new float[]{2f, 1f, 0f};
-        firstExtraChances = new float[]{0.5f, 0.2f, 0.05f};
-        orbProbabilityDecays = new float[]{0.3f, 0.4f, 0.2f};
+        guaranteedOrbsCounts = new float [] {2, 1, 1};
+        firstExtraChances = new float [] {0.70f, 0.40f, 0.15f};
+        orbProbabilityDecays = new float [] {0.25f, 0.30f, 0.30f};
 
         explodeSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/explosionSound.mp3"));
     }
 
     @Override
-    public void update(float delta, Player player, GameWorld world, GameScreen screen) {
+    public void update(float delta, Player player, GameWorld gameWorld, GameScreen screen) {
 
         if (!isAlive) return;
 
         // Faster priest path updates
-        updatePathsForEnemy(delta, player, world, 0.10f);
+        updatePathsForEnemy(delta, player, gameWorld, 0.10f);
 
         prevX = x;
         prevY = y;
@@ -98,7 +98,7 @@ public class ExplodingPriest extends Enemy {
 
                 } else {
 
-                    followPath(world, delta);
+                    followPath(gameWorld, delta);
                 }
             }
 
@@ -138,20 +138,20 @@ public class ExplodingPriest extends Enemy {
             }
 
             case EXPLODING -> {
-                explode(world, player, screen);
+                explode(gameWorld, player, screen);
                 return;
             }
         }
 
-        applySeparationForce(world);
-        applyKnockback(delta, world);
+        applySeparationForce(gameWorld);
+        applyKnockback(delta, gameWorld);
         updateFacing(player);
         updateAnimation(delta);
-        handlePriestDamageReaction(player, world);
+        handlePriestDamageReaction(player, gameWorld);
     }
 
 
-    private void explode(GameWorld world, Player player, GameScreen screen) {
+    private void explode(GameWorld gameWorld, Player player, GameScreen screen) {
 
         float dx = (player.x + player.hitBoxWidth / 2f) - (x + width / 2f);
         float dy = (player.y + player.hitBoxHeight / 2f) - (y + height / 2f);
@@ -166,20 +166,20 @@ public class ExplodingPriest extends Enemy {
         }
 
         // explosion animation
-        world.explosions.add(
-            new Explosion(x, y, world.explosionTexture)
+        gameWorld.explosions.add(
+            new Explosion(x, y, gameWorld.explosionTexture)
         );
 
         isAlive = false;
 
         if (diedWhileCharging)
-            world.spawnOrbs(this, player);
+            gameWorld.spawnOrbs(this, player);
 
-        world.removeEnemy(this);
+        gameWorld.removeEnemy(this);
     }
 
 
-    private void handlePriestDamageReaction(Player player, GameWorld world) {
+    private void handlePriestDamageReaction(Player player, GameWorld gameWorld) {
 
         if (!player.isAttacking) { hitThisAttack = false; return; }
         if (hitThisAttack) return;
@@ -212,15 +212,17 @@ public class ExplodingPriest extends Enemy {
         }
 
         int dmg = (int)(player.damage * dmgMult);
-        world.spawnDamage(x, y + height / 1.5f, dmg, color, scale);
+        gameWorld.spawnDamage(x, y + height / 1.5f, dmg, color, scale);
 
         HP -= dmg;
+        gameWorld.combo += 1;
+        gameWorld.timeSinceLastHit = 0f;
 
         if (HP <= 0) {
             if (state == PriestState.CHARGING) diedWhileCharging = true;
             isAlive = false;
-            world.removeEnemy(this);
-            if (diedWhileCharging) world.spawnOrbs(this, player);
+            gameWorld.removeEnemy(this);
+            if (diedWhileCharging) gameWorld.spawnOrbs(this, player);
         }
     }
 

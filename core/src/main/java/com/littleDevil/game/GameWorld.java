@@ -35,6 +35,14 @@ public class GameWorld {
     private final List<CollisionObject> objects = new ArrayList<>();
     public boolean[][] collisionGrid;
 
+    // WAVE SYSTEM
+    public boolean waveActive = false;
+    public int enemiesAlive = 0;
+    public float timeSinceLastHit = 0f;
+    public final float comboTimeout = 3f;
+    public boolean canStartNextWave = true;
+
+
     // Candle Decorations
     private Texture candleSheet;
     Texture pixel = new Texture("whitePixel.png");
@@ -66,6 +74,9 @@ public class GameWorld {
         PRIEST
     }
 
+    public float priestSpawnInterval = 12f; // you can tweak this
+    private float priestSpawnTimer = 0f;
+
     // Public UI info to be displayed on screen
     public float score = 0f;
     public int wave = 1;
@@ -85,7 +96,7 @@ public class GameWorld {
         mapTexture = new Texture("MapAssets/map.png");
 
         // Player
-        player = new Player(230, 100, "Spritesheets/playerSpriteSheet.png");
+        player = new Player(302, 236, "Spritesheets/playerSpriteSheet.png");
 
         // Enemies
         enemies = new ArrayList<>();
@@ -141,11 +152,35 @@ public class GameWorld {
             enemy.update(delta, player, this, gameScreen);
         }
 
+        // Combo decay timer
+        if (combo > 0) {
+            timeSinceLastHit += delta;
+            if (timeSinceLastHit > comboTimeout) {
+                combo = 0; // combo expired
+            }
+        }
+
+        if (waveActive && wave >= 6) {
+            priestSpawnTimer += delta;
+
+            if (priestSpawnTimer >= priestSpawnInterval) {
+                priestSpawnTimer = 0f;
+                spawnEnemy(EnemyType.PRIEST);
+                enemiesAlive++;
+            }
+        }
+
         // remove all enemies marked for removal
         if (!enemiesToRemove.isEmpty()) {
             enemies.removeAll(enemiesToRemove);
             enemiesToRemove.clear();
         }
+
+        // Check if wave ended (no enemies left)
+        if (waveActive && enemiesAlive <= 0) {
+            endWave();
+        }
+
         for (GameCandle candle : candles) candle.update(delta);
 
         bigAltar.update(delta, player,this);
@@ -443,7 +478,13 @@ public class GameWorld {
 
 
     public void removeEnemy(Enemy enemy) {
-        if (enemy != null) enemiesToRemove.add(enemy);
+        if (enemy != null) {
+            enemiesToRemove.add(enemy);
+
+            if (waveActive) {
+                enemiesAlive--;
+            }
+        }
     }
 
     public void spawnOrbs(Enemy enemy, Player player) {
@@ -510,4 +551,41 @@ public class GameWorld {
         BottleProjectile p = new BottleProjectile(potionSheet, startX, startY, targetX, targetY, this, damage);
         potions.add(p);
     }
+
+    public void startWave() {
+        if (!canStartNextWave) return;
+
+        waveActive = true;
+        canStartNextWave = false;
+        combo = 0;
+        timeSinceLastHit = 0f;
+        priestSpawnTimer = 0f;
+
+        // Clamp wave index (safety)
+        int index = Math.min(wave - 1, WaveManager.waves.length - 1);
+        Wave w = WaveManager.waves[index];
+
+        // Count enemies
+        enemiesAlive = w.templars + w.nuns + w.priests;
+
+        // Spawn
+        for (int i = 0; i < w.templars; i++) spawnEnemy(EnemyType.TEMPLAR);
+        for (int i = 0; i < w.nuns; i++) spawnEnemy(EnemyType.NUN);
+        for (int i = 0; i < w.priests; i++) spawnEnemy(EnemyType.PRIEST);
+    }
+
+    public void endWave() {
+        waveActive = false;
+        canStartNextWave = true;
+
+        // increase wave counter
+        wave++;
+
+        // Cap your waves if necessary
+        if (wave > 10) {
+            wave = 10;
+            // optionally trigger "endless mode" here
+        }
+    }
+
 }
