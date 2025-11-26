@@ -64,9 +64,29 @@ public class SmallAltar {
         // --- Phase 2: Active cycling (frames 4–8) ---
         else if (cycling) {
             if (!boostSpawned) {
-                boost = new Boost(Boost.Type.SPEED, x + 14, y + 26, new Texture("MapAssets/movementBoost.png"));
-                manageLight(0.7f);
 
+                double r = Math.random();
+                Boost.Type type;
+
+                if (r < 0.25) type = Boost.Type.SPEED;
+                else if (r < 0.50) type = Boost.Type.DAMAGE;
+                else if (r < 0.75) type = Boost.Type.REGEN;
+                else type = Boost.Type.SUPER;
+
+                // choose texture
+                Texture texture;
+
+                switch (type) {
+                    case SPEED -> texture = new Texture("MapAssets/movementBoost.png");
+                    case DAMAGE -> texture = new Texture("MapAssets/attackBoost.png");
+                    case REGEN -> texture = new Texture("MapAssets/regenBoost.png"); // you must add this
+                    case SUPER -> texture = new Texture("MapAssets/superBoost.png"); // and this
+                    default -> texture = new Texture("MapAssets/movementBoost.png");
+                }
+
+                boost = new Boost(type, x + 14, y + 26, texture);
+
+                manageLight(0.7f);
                 boostSpawned = true;
             }
 
@@ -81,8 +101,8 @@ public class SmallAltar {
             }
 
             // If player steps on it while loaded
-            if (player.isOnBoost(gameWorld)) {
-                boost.applyEffect(player);
+            if (boost != null && !boost.pickedUp && player.isOnBoost(boost)) {
+                boost.applyEffect(player, gameWorld);
                 manageLight(0f);
                 resetAltar();
             }

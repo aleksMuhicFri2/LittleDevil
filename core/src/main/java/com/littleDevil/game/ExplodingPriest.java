@@ -34,12 +34,12 @@ public class ExplodingPriest extends Enemy {
     // 3 = explode
 
     private final float BLINK_INTERVAL_1 = 0.3f;   // first flash speed
-    private final float BLINK_INTERVAL_2 = 0.60f;  // second flash (big one)
+    private final float BLINK_INTERVAL_2 = 0.50f;  // second flash (big one)
     private float currentBlinkInterval = 0f;
 
     // Radiuses
     private final float TRIGGER_DISTANCE = 20f;       // start charging
-    private final float EXPLOSION_RADIUS = 40f;       // does damage
+    private final float EXPLOSION_RADIUS = 50f;       // does damage
     private final float CHASE_RESET_DISTANCE = 35f;   // abort charging if player escapes THIS
 
     private boolean diedWhileCharging = false;
@@ -216,9 +216,8 @@ public class ExplodingPriest extends Enemy {
 
         HP -= dmg;
 
-        if (state == PriestState.CHARGING) diedWhileCharging = true;
-
         if (HP <= 0) {
+            if (state == PriestState.CHARGING) diedWhileCharging = true;
             isAlive = false;
             world.removeEnemy(this);
             if (diedWhileCharging) world.spawnOrbs(this, player);

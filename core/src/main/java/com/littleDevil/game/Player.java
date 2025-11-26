@@ -190,7 +190,25 @@ public class Player {
     public boolean isBlocked(float x, float y, GameWorld gameWorld) { return checkCollision(x, y, GameWorld.TileType.BLOCK, gameWorld); }
     public boolean isOnStairs(GameWorld gameWorld) { return checkCollision(x, y, GameWorld.TileType.STAIRS, gameWorld); }
     public boolean isUnreachable(GameWorld gameWorld) { return checkCollision(x, y, GameWorld.TileType.BLOCKENEMY, gameWorld); }
-    public boolean isOnBoost(GameWorld gameWorld) { return checkCollision(x, y, GameWorld.TileType.BOOST, gameWorld); }
+    public boolean isOnBoost(Boost boost) {
+        if (boost == null || boost.pickedUp) return false;
+
+        float bx = boost.getX();
+        float by = boost.getY();
+
+        // Player hitbox
+        float px1 = x;
+        float py1 = y;
+        float px2 = x + hitBoxWidth;
+        float py2 = y + hitBoxHeight;
+
+        // Simple boost hotspot size (16×16 in your code)
+        float bs = 16;
+        float bx2 = bx + bs;
+        float by2 = by + bs;
+
+        return px2 > bx && px1 < bx2 && py2 > by && py1 < by2;
+    }
     public boolean isOnAltar(GameWorld gameWorld) { return checkCollision(x, y, GameWorld.TileType.ALTAR, gameWorld); }
 
     // --- Animation of player ---
@@ -255,8 +273,8 @@ public class Player {
 
 
     // --- Boosts ---
-    public void boostSpeed(float time, float multiplier){ speedBoostTimer = time; speedMultiplier = multiplier; }
-    public void boostDamage(float time, float multiplier){ damageBoostTimer = time; damageMultiplier = multiplier; }
+    public void boostSpeed(float time, float multiplier){ speedBoostTimer = time; speedMultiplier = multiplier;}
+    public void boostDamage(float time, float multiplier){ damageBoostTimer = time; damageMultiplier = multiplier;}
 
     public void addXP(float value) {
         float XP_INCREASE_RATIO = 1.15f;
@@ -321,6 +339,15 @@ public class Player {
             swordFrame.getRegionWidth(), swordFrame.getRegionHeight(),
             1f, 1f,
             attackAngle + angleOffset
+        );
+    }
+
+    public void heal(float amount, GameWorld gameWorld) {
+        currentHP = Math.min(baseHP, currentHP + amount);
+
+        // spawn heal animation centered under player
+        gameWorld.healAnimations.add(
+            new HealingAnimation(this, 2f, gameWorld.healingTexture)
         );
     }
 

@@ -40,6 +40,7 @@ public class GameWorld {
     Texture pixel = new Texture("whitePixel.png");
     Texture potionSheet = new Texture("Spritesheets/nunPotionSpritesheet.png");
     public Texture explosionTexture = new Texture("Spritesheets/explosionAnimation.png");
+    public Texture healingTexture = new Texture("Spritesheets/healingAnimation.png");
 
     // Pathing
     private final float PATH_UPDATE_INTERVAL = 1f; // 1 update per second (BASE)
@@ -57,6 +58,7 @@ public class GameWorld {
     public List<Orb> orbs = new ArrayList<>();
     public List<BottleProjectile> potions = new ArrayList<>();
     public List<Explosion> explosions = new ArrayList<>();
+    public ArrayList<HealingAnimation> healAnimations = new ArrayList<>();
 
     public enum EnemyType {
         TEMPLAR,
@@ -174,6 +176,11 @@ public class GameWorld {
             e.update(delta);
             if (e.done) explosions.remove(i);
         }
+        for (int i = healAnimations.size() - 1; i >= 0; i--) {
+            HealingAnimation h = healAnimations.get(i);
+            h.update(delta);
+            if (h.done) healAnimations.remove(i);
+        }
     }
 
     public void render(SpriteBatch batch) {
@@ -195,6 +202,7 @@ public class GameWorld {
 
         // Player sword
         player.renderSword(batch);
+        for (HealingAnimation h : healAnimations) h.render(batch);
 
         List<RenderEntity> renderList = new ArrayList<>();
 

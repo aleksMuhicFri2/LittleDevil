@@ -5,6 +5,7 @@ import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 
 public class Boost {
     // CLASS USED TO DESCRIBE BOOSTS
@@ -41,10 +42,10 @@ public class Boost {
 
     public void render(SpriteBatch batch) {
         if (!pickedUp)
-            batch.draw(texture, x - 8, y - 8, 16, 16);
+            batch.draw(texture, x - 6, y - 8, 16, 16);
     }
 
-    public void applyEffect(Player player) {
+    public void applyEffect(Player player, GameWorld gameWorld) {
         pickedUp = true;
 
         // Play pickup sound with random pitch variation
@@ -59,13 +60,17 @@ public class Boost {
                 player.boostDamage(2f, 1.5f);
                 break;
             case REGEN:
-                player.baseHP += player.currentHP / 4;
+                player.heal(player.baseHP / 4, gameWorld);
                 break;
             case SUPER:
-                player.baseEnergy += player.currentEnergy / 4;
+                player.currentEnergy = Math.min(player.baseEnergy, player.currentEnergy + player.baseEnergy / 4);
                 break;
         }
     }
+
+    public float getX() { return x; }
+    public float getY() { return y; }
+    public Type getType() { return type; }
 
     public void dispose() {
         texture.dispose();
