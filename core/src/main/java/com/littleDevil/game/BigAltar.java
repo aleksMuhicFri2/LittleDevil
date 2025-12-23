@@ -59,28 +59,36 @@ public class BigAltar {
     }
 
     public void update(float delta, Player player, GameWorld gameWorld) {
-        animationTimer += delta;
 
+        animationTimer += delta;
         if (animationTimer < frameDuration) return;
         animationTimer = 0f;
 
-        // --- Player on altar ---
-        if (player.isOnAltar(gameWorld)) {
+        boolean onAltar = player.isOnAltar(gameWorld);
 
+        // --- Player on altar ---
+        if (onAltar) {
+
+            // Animate altar opening
             if (!reversing) {
                 frameIndex++;
-
-                if (frameIndex >= 8) {
-                    // altar fully opened, loops 8-9-10
-                }
-                if (frameIndex > 9) frameIndex = 8;
-
+                if (frameIndex > 9) frameIndex = 9;
             } else {
                 reversing = false;
             }
+
+            // ✔️ TRIGGER UPGRADE PAGE WHEN FULLY LIT
+            if (frameIndex >= 6) {
+                gameWorld.gameScreen.uiManager.openUpgradePage();
+            }
+
         }
         // --- Player left altar ---
         else {
+
+            // Close UI if it was open
+            gameWorld.gameScreen.uiManager.closeUpgradePage();
+
             if (frameIndex > 0) {
                 reversing = true;
                 frameIndex--;
@@ -93,36 +101,6 @@ public class BigAltar {
         frameIndex = Math.max(0, Math.min(frameIndex, totalFrames - 1));
         currentFrame = frames[frameIndex];
 
-        // --- Candle light transitions ---
-        // Candles correspond to frameIndex 1–6
-        for (int i = 0; i < 5; i++) {
-
-            int lightIndex = 14 + i;
-            float targetAlpha = (frameIndex >= i + 1) ? 0.7f : 0f;
-
-            // Smooth interpolate
-            LightData.lightObjects[lightIndex].alpha +=
-                (targetAlpha - LightData.lightObjects[lightIndex].alpha) * 20f * delta;
-
-            boolean shouldBeLit = frameIndex >= i + 1;
-
-            // Play sound ONLY on the first candle (i == 0)
-            if (i == 0 && shouldBeLit && !candleLit[0]) {
-                float pitch = 0.85f + (float)Math.random() * 0.3f;
-                candleLightSound.play(0.05f, pitch, 0f);
-                candleLit[0] = true;
-            }
-
-            // Track lit state for all candles (but do not play sound for 1–4)
-            if (shouldBeLit && !candleLit[i]) {
-                candleLit[i] = true;
-            }
-
-            // Reset when turning off
-            if (!shouldBeLit && candleLit[i]) {
-                candleLit[i] = false;
-            }
-        }
     }
 
     public void render(SpriteBatch batch) {

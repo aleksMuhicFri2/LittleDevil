@@ -16,6 +16,8 @@ import java.util.Random;
 
 public class GameWorld {
 
+    public GameScreen gameScreen;
+
     // World dimensions
     public final int mapWidth, mapHeight, tileSize;
     public final int widthInTiles, heightInTiles;
@@ -41,6 +43,10 @@ public class GameWorld {
     public float timeSinceLastHit = 0f;
     public final float comboTimeout = 3f;
     public boolean canStartNextWave = true;
+
+    public float nextWaveTimer = 0f;
+    public float TIME_BETWEEN_WAVES = 10f; // <--- The 10s variable
+    public boolean waitingForNextWave = false;
 
 
     // Candle Decorations
@@ -68,13 +74,17 @@ public class GameWorld {
     public List<Explosion> explosions = new ArrayList<>();
     public ArrayList<HealingAnimation> healAnimations = new ArrayList<>();
 
+    private List<EnemyType> enemySpawnQueue = new ArrayList<>();
+    private float spawnQueueTimer = 0f;
+    private final float SPAWN_DELAY = 3f;
+
     public enum EnemyType {
         TEMPLAR,
         NUN,
         PRIEST
     }
 
-    public float priestSpawnInterval = 12f; // you can tweak this
+    public float priestSpawnInterval = 12f;
     private float priestSpawnTimer = 0f;
 
     // Public UI info to be displayed on screen
@@ -82,7 +92,8 @@ public class GameWorld {
     public int wave = 1;
     public int combo = 0;
 
-    public GameWorld(int mapWidth, int mapHeight, int tileSize) {
+    public GameWorld(int mapWidth, int mapHeight, int tileSize, GameScreen gameScreen) {
+        this.gameScreen = gameScreen;
         this.mapWidth = mapWidth;
         this.mapHeight = mapHeight;
         this.tileSize = tileSize;
@@ -96,14 +107,15 @@ public class GameWorld {
         mapTexture = new Texture("MapAssets/map.png");
 
         // Player
-        player = new Player(302, 236, "Spritesheets/playerSpriteSheet.png");
+        player = new Player(302, 236, "Spritesheets/playerSpriteSheet.png", this);
 
         // Enemies
         enemies = new ArrayList<>();
-        spawnEnemy(EnemyType.TEMPLAR);
-        spawnEnemy(EnemyType.NUN);
-        spawnEnemy(EnemyType.PRIEST);
 
+        // Automatically start the countdown for Wave 1
+        waitingForNextWave = true;
+        canStartNextWave = false;
+        // -----------------------------------------------------------
 
         // Altars
         bigAltar = new BigAltar(262, 200, "Spritesheets/bigAltarSpritesheet.png");
@@ -146,56 +158,85 @@ public class GameWorld {
     public void update(float delta, GameScreen gameScreen) {
         player.update(delta, this);
 
-        // update A* paths when needed = reduce timer
+        // 1. Process Spawn Queue
+        if (!enemySpawnQueue.isEmpty()) {
+            spawnQueueTimer += delta;
+            if (spawnQueueTimer >= SPAWN_DELAY) {
+                spawnQueueTimer = 0f;
+                EnemyType typeToSpawn = enemySpawnQueue.remove(0);
+                spawnEnemy(typeToSpawn);
+            }
+        }
+
+        // 2. Wave Cooldown Logic
+        if (waitingForNextWave) {
+            int previousSeconds = (int) Math.ceil(TIME_BETWEEN_WAVES - nextWaveTimer);
+            nextWaveTimer += delta;
+            int currentSeconds = (int) Math.ceil(TIME_BETWEEN_WAVES - nextWaveTimer);
+
+            if (currentSeconds != previousSeconds && currentSeconds >= 0) {
+                System.out.println("Wave " + wave + " starting in: " + currentSeconds + "s");
+            }
+
+            if (nextWaveTimer >= TIME_BETWEEN_WAVES) {
+                waitingForNextWave = false;
+                nextWaveTimer = 0f;
+                canStartNextWave = true;
+                startWave();
+            }
+        }
+
+        // 3. Update Entities
         for(Enemy enemy :  enemies) {
             enemy.updatePathsForEnemy(delta, player, this, PATH_UPDATE_INTERVAL);
             enemy.update(delta, player, this, gameScreen);
         }
 
-        // Combo decay timer
+        // 4. Update Mechanics
         if (combo > 0) {
             timeSinceLastHit += delta;
-            if (timeSinceLastHit > comboTimeout) {
-                combo = 0; // combo expired
-            }
+            if (timeSinceLastHit > comboTimeout) combo = 0;
         }
 
+        // Infinite priests after Wave 6
         if (waveActive && wave >= 6) {
             priestSpawnTimer += delta;
-
             if (priestSpawnTimer >= priestSpawnInterval) {
                 priestSpawnTimer = 0f;
                 spawnEnemy(EnemyType.PRIEST);
-                enemiesAlive++;
+                enemiesAlive++; // UI Update only
             }
         }
 
-        // remove all enemies marked for removal
+        // 5. Remove Dead Enemies
         if (!enemiesToRemove.isEmpty()) {
             enemies.removeAll(enemiesToRemove);
             enemiesToRemove.clear();
         }
 
-        // Check if wave ended (no enemies left)
-        if (waveActive && enemiesAlive <= 0) {
+        // 6. Check Wave End Condition (SOURCE OF TRUTH FIX)
+        // Wave ends only if:
+        // A) We are in a wave
+        // B) No enemies are waiting in the queue
+        // C) No enemies are physically in the world
+        if (waveActive && enemySpawnQueue.isEmpty() && enemies.isEmpty()) {
             endWave();
         }
 
+        // 7. Update objects
         for (GameCandle candle : candles) candle.update(delta);
-
         bigAltar.update(delta, player,this);
         smallAltarTopLeft.update(delta, player, this);
         smallAltarTopRight.update(delta, player, this);
         smallAltarBotRight.update(delta, player, this);
         smallAltarBotLeft.update(delta, player, this);
 
-        // Update damage texts
+        // Update lists
         for (int i = damageTexts.size() - 1; i >= 0; i--) {
             DamageText dt = damageTexts.get(i);
             dt.update(delta);
             if (dt.finished) damageTexts.remove(i);
         }
-
         for (int i = orbs.size() - 1; i >= 0; i--) {
             Orb orb = orbs.get(i);
             orb.update(delta, player, this);
@@ -416,53 +457,58 @@ public class GameWorld {
     }
 
     public void spawnEnemy(EnemyType type) {
-
         float enemyWidth = 32f;
         float enemyHeight = 32f;
 
         float spawnX = 0;
         float spawnY = 0;
+        boolean valid = false;
 
-        // Pick a side: 0=top, 1=bottom, 2=left, 3=right
-        int side = (int)(Math.random() * 4);
+        // Try up to 10 times to find a valid one of the 4 spots
+        for (int i = 0; i < 10; i++) {
 
-        switch (side) {
-            case 0 -> { // Top center
-                spawnX = mapWidth / 2f;
-                spawnY = mapHeight - enemyHeight;
+            // Pick a side: 0=top, 1=bottom, 2=left, 3=right
+            int side = MathUtils.random(3);
+
+            switch (side) {
+                case 0 -> { // Top center
+                    spawnX = mapWidth / 2f;
+                    spawnY = mapHeight - enemyHeight;
+                }
+                case 1 -> { // Bottom center
+                    spawnX = mapWidth / 2f;
+                    spawnY = enemyHeight;
+                }
+                case 2 -> { // Left center
+                    spawnX = enemyWidth;
+                    spawnY = mapHeight / 2f;
+                }
+                case 3 -> { // Right center
+                    spawnX = mapWidth - enemyWidth;
+                    spawnY = mapHeight / 2f;
+                }
             }
-            case 1 -> { // Bottom center
-                spawnX = mapWidth / 2f;
-                spawnY = enemyHeight;
+
+            // Check collision
+            boolean blocked = false;
+            for (CollisionObject obj : objects) {
+                if (spawnX + enemyWidth > obj.posX && spawnX - enemyWidth / 2f < obj.posX + obj.width &&
+                    spawnY + enemyHeight > obj.posY && spawnY - enemyHeight / 2f < obj.posY + obj.height) {
+                    blocked = true;
+                    break;
+                }
             }
-            case 2 -> { // Left center
-                spawnX = enemyWidth;
-                spawnY = mapHeight / 2f;
-            }
-            case 3 -> { // Right center
-                spawnX = mapWidth - enemyWidth;
-                spawnY = mapHeight / 2f;
+
+            if (!blocked) {
+                valid = true;
+                break; // Found a spot, exit loop
             }
         }
 
-        // Safety clamp
-        spawnX = MathUtils.clamp(spawnX, enemyWidth / 2f, mapWidth - enemyWidth / 2f);
-        spawnY = MathUtils.clamp(spawnY, enemyHeight / 2f, mapHeight - enemyHeight / 2f);
-
-        // Collision check (optional but kept from your old logic)
-        boolean valid = true;
-        for (CollisionObject obj : objects) {
-            if (spawnX + enemyWidth > obj.posX && spawnX - enemyWidth/2f < obj.posX + obj.width &&
-                spawnY + enemyHeight > obj.posY && spawnY - enemyHeight/2f < obj.posY + obj.height) {
-
-                valid = false;
-                break;
-            }
-        }
-
+        // If we failed 10 times, force spawn at the last calculated position
+        // to prevent the game from soft-locking (waiting for an enemy that never spawns).
         if (!valid) {
-            Gdx.app.log("SpawnEnemy", "Edge spawn blocked by collision object.");
-            return;
+            System.out.println("Warning: Forced spawn for " + type);
         }
 
         Enemy newEnemy;
@@ -478,12 +524,13 @@ public class GameWorld {
 
 
     public void removeEnemy(Enemy enemy) {
-        if (enemy != null) {
-            enemiesToRemove.add(enemy);
+        if (enemy == null) return;
+        if (enemiesToRemove.contains(enemy)) return;
 
-            if (waveActive) {
-                enemiesAlive--;
-            }
+        enemiesToRemove.add(enemy);
+
+        if (waveActive) {
+            enemiesAlive--; // Keeps UI accurate
         }
     }
 
@@ -555,6 +602,8 @@ public class GameWorld {
     public void startWave() {
         if (!canStartNextWave) return;
 
+        System.out.println(">>> WAVE " + wave + " HAS STARTED! <<<");
+
         waveActive = true;
         canStartNextWave = false;
         combo = 0;
@@ -565,27 +614,23 @@ public class GameWorld {
         int index = Math.min(wave - 1, WaveManager.waves.length - 1);
         Wave w = WaveManager.waves[index];
 
-        // Count enemies
-        enemiesAlive = w.templars + w.nuns + w.priests;
+        enemySpawnQueue.clear();
+        spawnQueueTimer = 0f; // Reset timer so first one spawns instantly
 
-        // Spawn
-        for (int i = 0; i < w.templars; i++) spawnEnemy(EnemyType.TEMPLAR);
-        for (int i = 0; i < w.nuns; i++) spawnEnemy(EnemyType.NUN);
-        for (int i = 0; i < w.priests; i++) spawnEnemy(EnemyType.PRIEST);
+        // Add to Queue instead of spawning immediately
+        for (int i = 0; i < w.templars; i++) enemySpawnQueue.add(EnemyType.TEMPLAR);
+        for (int i = 0; i < w.nuns; i++)     enemySpawnQueue.add(EnemyType.NUN);
+        for (int i = 0; i < w.priests; i++)  enemySpawnQueue.add(EnemyType.PRIEST);
     }
 
     public void endWave() {
         waveActive = false;
-        canStartNextWave = true;
+        waitingForNextWave = true;
+        nextWaveTimer = 0f;
+        canStartNextWave = false;
 
-        // increase wave counter
         wave++;
-
-        // Cap your waves if necessary
-        if (wave > 10) {
-            wave = 10;
-            // optionally trigger "endless mode" here
-        }
+        if (wave > 10) wave = 10;
     }
 
 }

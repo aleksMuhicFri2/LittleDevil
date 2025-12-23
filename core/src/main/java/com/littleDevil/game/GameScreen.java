@@ -12,32 +12,32 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.*;
 
 public class GameScreen implements Screen {
-
     private final Main game;
 
-    // White pixel texture
+    public UIManager uiManager;
+
+    // Textures
     private Texture pixel;
-
-    // Game Cameras
-    private SpriteBatch batch;
-    private OrthographicCamera camera;
-    private ExtendViewport viewport;
-
-    // UI Cameras
-    private OrthographicCamera UICamera;
-    private ExtendViewport UIViewport;
-
-    // UI
     private Texture playerUI;
     private Texture wavePanel;
-
-    // Player UI bars
     private Texture barsBackground;
     private Texture healthBar;
     private Texture energyBar;
     private Texture xpBar;
+    private Texture darknessTexture;
 
-    // Game world
+    // Cameras and viewports
+    private SpriteBatch batch;
+    private OrthographicCamera camera;
+    private ExtendViewport viewport;
+    private OrthographicCamera UICamera;
+    private ExtendViewport UIViewport;
+
+    // Fonts and layouts
+    private BitmapFont scoreFont, waveFont, comboFont, levelFont, skillFont;
+    private GlyphLayout scoreLayout, waveLayout, comboLayout, levelLayout;
+
+    // Game world and UI
     private GameWorld gameWorld;
 
     // Mouse tracking
@@ -45,28 +45,15 @@ public class GameScreen implements Screen {
     private final Vector2 mouseDir = new Vector2();
     public static float mouseAngle = 0f;
 
-    // Dark Overlay
-    private Texture darknessTexture;
-    private float darknessAlpha = 0.55f;
-
-    // Fonts + layouts
-    private BitmapFont scoreFont;
-    private GlyphLayout scoreLayout;
-    private BitmapFont waveFont;
-    private GlyphLayout waveLayout;
-    private BitmapFont comboFont;
-    private GlyphLayout comboLayout;
-    private BitmapFont levelFont;
-    private GlyphLayout levelLayout;
-
     // Music
     private Music backgroundMusic;
 
-    // Camera shake / pause
+    // Effects
     private float cameraShakeTimer = 0f;
-    private final float CAMERA_SHAKE_INTENSITY = 1f;
+    private float darknessAlpha = 0.55f;
+    private static final float CAMERA_SHAKE_INTENSITY = 1f;
 
-    // Time
+    // Time pause
     private float timePauseTimer = 0f;
     private boolean timePaused = false;
 
@@ -78,7 +65,7 @@ public class GameScreen implements Screen {
     public void show() {
         batch = new SpriteBatch();
 
-        // Load textures
+        // Load assets
         pixel = new Texture("whitePixel.png");
         playerUI = new Texture("GameUI/playerUI.png");
         wavePanel = new Texture("GameUI/wavePanel.png");
@@ -87,58 +74,50 @@ public class GameScreen implements Screen {
         energyBar = new Texture("GameUI/energyBar.png");
         xpBar = new Texture("GameUI/xpBar.png");
 
-        // Font generator setup
+        // Fonts
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
 
-        // Score font
         param.size = (int)(Gdx.graphics.getHeight() * 0.06f);
         param.color = new Color(0.85f, 0.85f, 0.85f, 0.5f);
         scoreFont = generator.generateFont(param);
 
-        // Wave font
         param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
         param.color = new Color(0f, 0f, 0f, 1f);
         param.borderWidth = 0.5f;
         waveFont = generator.generateFont(param);
 
-        // Combo font
-        param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
+        param.color = new Color(1f, 1f, 1f, 0.4f);
+        skillFont = generator.generateFont(param);
+
         param.color = new Color(1f, 0.1f, 0f, 1f);
         comboFont = generator.generateFont(param);
 
-        // Level font
-        param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
         param.color = Color.SKY;
         param.borderWidth = 0f;
         levelFont = generator.generateFont(param);
 
         generator.dispose();
 
-        // Define layouts
         scoreLayout = new GlyphLayout();
         waveLayout = new GlyphLayout();
         comboLayout = new GlyphLayout();
         levelLayout = new GlyphLayout();
 
-        // Background music
         backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("Sounds/gameBackgroundMusic.mp3"));
         backgroundMusic.setLooping(true);
         backgroundMusic.setVolume(0.1f);
         backgroundMusic.play();
 
-        // Game world setup
-        gameWorld = new GameWorld(600, 400, 4);
+        gameWorld = new GameWorld(600, 400, 4, this);
         gameWorld.initialize();
 
-        // Darkness overlay
         Pixmap pix = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pix.setColor(0f, 0f, 0f, 1f);
         pix.fill();
         darknessTexture = new Texture(pix);
         pix.dispose();
 
-        // Cameras init
         camera = new OrthographicCamera();
         viewport = new ExtendViewport(gameWorld.mapWidth / 2f, gameWorld.mapHeight / 2f, camera);
         viewport.apply();
@@ -150,6 +129,25 @@ public class GameScreen implements Screen {
         UIViewport.apply();
         UICamera.position.set(UIViewport.getWorldWidth() / 2f, UIViewport.getWorldHeight() / 2f, 0);
         UICamera.update();
+
+        uiManager = new UIManager(
+            gameWorld,
+            gameWorld.player,
+            batch,
+            UICamera,
+            UIViewport,
+            scoreFont,
+            waveFont,
+            comboFont,
+            levelFont,
+            skillFont,
+            playerUI,
+            wavePanel,
+            barsBackground,
+            healthBar,
+            energyBar,
+            xpBar
+        );
     }
 
     @Override
@@ -163,57 +161,41 @@ public class GameScreen implements Screen {
 
         ScreenUtils.clear(Color.BLACK);
 
-        // Game world render
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
         gameWorld.render(batch);
+        renderLighting();
+        batch.end();
 
-        // Darkness overlay
+        batch.setProjectionMatrix(UICamera.combined);
+        uiManager.render();
+    }
+
+    private void renderLighting() {
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         batch.setColor(1f, 1f, 1f, darknessAlpha);
         batch.draw(darknessTexture, 0, 0, gameWorld.mapWidth, gameWorld.mapHeight);
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
-
-        // Draw lights
         for (Light light : LightData.lightObjects) {
             float drawX = light.x - light.width / 2f;
             float drawY = light.y - light.height / 2f;
             batch.setColor(1f, 1f, 1f, light.alpha);
             batch.draw(light.texture, drawX, drawY, light.width, light.height);
         }
-
         batch.setColor(1f,1f,1f,1f);
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-        batch.end();
-
-        // UI render
-        batch.setProjectionMatrix(UICamera.combined);
-        batch.begin();
-        drawPlayerUI();
-        drawWavePanelUI();
-        drawWaveUI();
-        drawScoreUI();
-        drawComboUI();
-        batch.end();
     }
 
     private void updateCamera(float delta) {
         Player player = gameWorld.player;
         if (player == null) return;
-
         float lerp = 3f * delta;
-        float targetX = player.x;
-        float targetY = player.y;
-
-        camera.position.x += (targetX - camera.position.x) * lerp;
-        camera.position.y += (targetY - camera.position.y) * lerp;
-
+        camera.position.lerp(new Vector3(player.x, player.y, 0), lerp);
         if (cameraShakeTimer > 0f) {
-            camera.position.x += (float)(Math.random() - 0.5f) * CAMERA_SHAKE_INTENSITY;
-            camera.position.y += (float)(Math.random() - 0.5f) * CAMERA_SHAKE_INTENSITY;
+            camera.position.x += MathUtils.random(-0.5f, 0.5f) * CAMERA_SHAKE_INTENSITY;
+            camera.position.y += MathUtils.random(-0.5f, 0.5f) * CAMERA_SHAKE_INTENSITY;
             cameraShakeTimer -= delta;
         }
-
         float halfW = camera.viewportWidth / 2f;
         float halfH = camera.viewportHeight / 2f;
         camera.position.x = MathUtils.clamp(camera.position.x, halfW, gameWorld.mapWidth - halfW);
@@ -239,154 +221,6 @@ public class GameScreen implements Screen {
         }
     }
 
-    // Balances scale of UI when resizing
-    private float getScale(float maxScale) {
-        float referenceWidth = 1920f;
-        float referenceHeight = 1080f;
-        float scale = Math.min(
-            Gdx.graphics.getWidth() / referenceWidth,
-            Gdx.graphics.getHeight() / referenceHeight
-        );
-        return Math.min(scale * 8f, maxScale);
-    }
-
-    // Draws wave panel
-    private void drawWavePanelUI() {
-        float baseWidth = 64f;
-        float baseHeight = 64f;
-        float scale = getScale(3f);
-        float uiWidth = baseWidth * scale;
-        float uiHeight = baseHeight * scale;
-        float uiX = (UIViewport.getWorldWidth() - uiWidth) / 2f;
-        float uiY = UIViewport.getWorldHeight() - (uiHeight / 1.5f);
-        batch.draw(wavePanel, uiX, uiY, uiWidth, uiHeight);
-    }
-
-    private void drawWaveUI() {
-        String label = "Wave";
-        String value = String.valueOf(gameWorld.getWave());
-
-        waveLayout.setText(waveFont, label);
-        float labelWidth = waveLayout.width;
-        waveLayout.setText(waveFont, value);
-        float valueWidth = waveLayout.width;
-
-        float totalWidth = labelWidth + 10f + valueWidth;
-        float startX = (UIViewport.getWorldWidth() - totalWidth) / 2f;
-        float y = UIViewport.getWorldHeight() - 43f;
-
-        waveFont.draw(batch, label, startX, y);
-        waveFont.draw(batch, value, startX + labelWidth + 10f, y);
-    }
-
-    // Draws Player UI
-    private void drawPlayerUI() {
-        float baseWidth = 112f;
-        float baseHeight = 48f;
-        float scale = getScale(3.5f);
-        float uiWidth = baseWidth * scale;
-        float uiHeight = baseHeight * scale;
-        float uiX = (UIViewport.getWorldWidth() - uiWidth) / 2f;
-        float uiY = -uiHeight * 0.4f;
-
-        Player player = gameWorld.player;
-        if (player == null) return;
-
-        updatePlayerDisplayValues(player);
-
-        // Ratios
-        float healthRatio = MathUtils.clamp(player.displayHP / player.baseHP, 0f, 1f);
-        float energyRatio = MathUtils.clamp(player.displayEnergy / player.baseEnergy, 0f, 1f);
-        float xpRatio = MathUtils.clamp(player.displayXp / player.neededXp, 0f, 1f);
-
-        // Draw background
-        batch.draw(barsBackground, uiX, uiY, uiWidth, uiHeight);
-
-        drawLevelText(player, uiY, uiHeight, scale);
-        drawBars(healthRatio, energyRatio, xpRatio, uiX, uiY, scale);
-        batch.draw(playerUI, uiX, uiY, uiWidth, uiHeight);
-    }
-
-    private void updatePlayerDisplayValues(Player player) {
-        float lerpSpeed = 8f * Gdx.graphics.getDeltaTime();
-
-        player.displayHP = MathUtils.lerp(player.displayHP, player.currentHP, lerpSpeed);
-        player.displayEnergy = MathUtils.lerp(player.displayEnergy, player.currentEnergy, lerpSpeed);
-
-        if (player.xpOverflowAnimating) {
-            player.displayXp = MathUtils.lerp(player.displayXp, player.previousNeededXp, lerpSpeed);
-            if (Math.abs(player.displayXp - player.previousNeededXp) < 1f) {
-                player.displayXp = 0f;
-                player.xpOverflowAnimating = false;
-                player.levelUp = false;
-                player.level += 1;
-            }
-        } else {
-            player.displayXp = MathUtils.lerp(player.displayXp, player.currentXp, lerpSpeed);
-        }
-    }
-
-    private void drawBars(float healthRatio, float energyRatio, float xpRatio, float uiX, float uiY, float scale) {
-        float fullHealthWidth = 43f * scale;
-        float fullEnergyWidth = 43f * scale;
-        float fullXPWidth = 76f * scale;
-
-        float healthHeight = 5f * scale;
-        float energyHeight = 5f * scale;
-        float xpHeight = 2f * scale;
-
-        float healthX = uiX + 12f * scale;
-        float healthY = uiY + 23f * scale;
-        float energyX = uiX + 57f * scale;
-        float energyY = healthY;
-        float xpX = uiX + 18f * scale;
-        float xpY = uiY + 32f * scale;
-
-        batch.draw(healthBar, healthX, healthY, fullHealthWidth * healthRatio, healthHeight);
-        batch.draw(energyBar, energyX, energyY, fullEnergyWidth * energyRatio, energyHeight);
-        batch.draw(xpBar, xpX, xpY, fullXPWidth * xpRatio, xpHeight);
-    }
-
-    private void drawLevelText(Player player, float uiY, float uiHeight, float scale) {
-        String levelText = "Lvl " + (int)player.level;
-        levelLayout.setText(levelFont, levelText);
-        float textX = (UIViewport.getWorldWidth() - levelLayout.width) / 2f;
-        float textY = uiY + uiHeight - 5f * scale;
-        levelFont.draw(batch, levelText, textX, textY);
-    }
-
-    // Draws Score UI
-    private void drawScoreUI() {
-        String label = "Score:";
-        String value = String.valueOf(gameWorld.getScore());
-
-        scoreLayout.setText(scoreFont, label);
-        float labelX = 20f;
-        float y = UIViewport.getWorldHeight() - 20f;
-
-        scoreFont.draw(batch, label, labelX, y);
-        scoreLayout.setText(scoreFont, value);
-        scoreFont.draw(batch, value, labelX + scoreLayout.width + 100f, y);
-    }
-
-    // Draws Combo UI
-    private void drawComboUI() {
-        int combo = gameWorld.getCombo();
-        if (combo <= 0) return;
-
-        String label = "Combo:";
-        String value = combo + "x";
-
-        comboLayout.setText(comboFont, label);
-        float labelX = 20f;
-        float y = UIViewport.getWorldHeight() - 60f;
-
-        comboFont.draw(batch, label, labelX, y);
-        comboLayout.setText(comboFont, value);
-        comboFont.draw(batch, value, labelX + comboLayout.width + 70f, y);
-    }
-
-    // Public functions
     public static float getMouseAngle() {
         return mouseAngle;
     }
@@ -401,20 +235,25 @@ public class GameScreen implements Screen {
 
     @Override
     public void resize(int width, int height) {
+        // World viewport
         viewport.update(width, height);
-        UIViewport.update(width, height);
+
+        // UI viewport
+        UIViewport.update(width, height, true);
         UICamera.position.set(UIViewport.getWorldWidth() / 2f, UIViewport.getWorldHeight() / 2f, 0);
         UICamera.update();
+
+        // Forward resize to UI manager
+        uiManager.resize(width, height);
     }
+
 
     @Override public void pause() {
         if (backgroundMusic != null && backgroundMusic.isPlaying()) backgroundMusic.pause();
     }
-
     @Override public void resume() {
         if (backgroundMusic != null && !backgroundMusic.isPlaying()) backgroundMusic.play();
     }
-
     @Override public void hide() {}
 
     @Override

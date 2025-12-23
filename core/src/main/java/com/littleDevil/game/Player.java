@@ -9,6 +9,8 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 
 public class Player {
 
+    private GameWorld gameWorld;
+
     // Position
     public float x, y, prevX, prevY;
     public int width = 32;
@@ -69,8 +71,25 @@ public class Player {
     public boolean levelUp = false;
     public boolean xpOverflowAnimating = false;
 
+    public int skillPoints = 1;
 
-    public Player(float startX, float startY, String spriteSheetPath) {
+    public enum StatType {
+        ATTACK,
+        AGILITY,
+        DEFENSE,
+        LUCK,
+        SUPER
+    }
+
+    public int attackLevel = 0;
+    public int defenseLevel = 0;
+    public int luckLevel = 0;
+    public int agilityLevel = 0;
+    public int superLevel = 0;
+
+    public Player(float startX, float startY, String spriteSheetPath, GameWorld gameWorld) {
+        this.gameWorld = gameWorld;
+
         this.x = startX;
         this.y = startY;
 
@@ -249,7 +268,7 @@ public class Player {
         attackCooldownTimer = attackSpeed;
 
         // Lock the angle at attack start
-        attackAngle = GameScreen.getMouseAngle();
+        attackAngle = gameWorld.gameScreen.getMouseAngle();
 
         float rad = (float)Math.toRadians(attackAngle);
         attackDirX = (float)Math.cos(rad);
@@ -284,6 +303,9 @@ public class Player {
             currentXp -= neededXp;
             previousNeededXp = neededXp;
             neededXp *= XP_INCREASE_RATIO;
+
+            skillPoints++;
+
             levelUp = true;
             xpOverflowAnimating = true; // start overflow animation
         }
@@ -353,6 +375,78 @@ public class Player {
 
     public void renderSword(SpriteBatch batch) {
         if (isAttacking && currentSwordFrame != null) drawSword(batch, currentSwordFrame);
+    }
+
+    public void upgradeStat(StatType stat) {
+
+        if (skillPoints <= 0) {
+            return;
+        }
+
+        boolean success = false;
+
+        switch (stat) {
+            case ATTACK:
+                if (attackLevel < 7) {
+                    attackLevel++;
+                    // Increase base damage
+                    baseDamage += 8f;
+                    damage = baseDamage;
+                    success = true;
+                }
+                break;
+
+            case AGILITY:
+                if (agilityLevel < 7) {
+                    agilityLevel++;
+                    // Increase movement speed
+                    baseSpeed += 4f;
+                    // Optional: Decrease dash cooldown slightly
+                    dashCooldown = Math.max(0.4f, dashCooldown - 0.05f);
+                    success = true;
+                }
+                break;
+
+            case DEFENSE:
+                if (defenseLevel < 7) {
+                    defenseLevel++;
+                    // Increase Max HP
+                    baseHP += 25f;
+                    // Heal the amount gained so the bar doesn't look empty
+                    currentHP += 25f;
+                    // Increase Armor
+                    armor += 2f;
+                    success = true;
+                }
+                break;
+
+            case LUCK:
+                if (luckLevel < 7) {
+                    luckLevel++;
+                    // Increase luck and sync crit chance
+                    luck += 0.05f;
+                    critChance = luck;
+                    success = true;
+                }
+                break;
+
+            case SUPER:
+                if (superLevel < 7) {
+                    superLevel++;
+                    // Decrease attack cooldown (attack faster)
+                    //baseAttackSpeed = Math.max(0.2f, baseAttackSpeed - 0.04f);
+                    success = true;
+                }
+                break;
+        }
+
+        // 2. Deduct point only if the upgrade actually happened
+        if (success) {
+            skillPoints--;
+
+            // Debug print to verify it's working
+            System.out.println("Upgraded " + stat + "! Points remaining: " + skillPoints);
+        }
     }
 
     // --- Getters ---

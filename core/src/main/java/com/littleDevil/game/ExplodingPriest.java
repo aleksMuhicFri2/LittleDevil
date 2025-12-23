@@ -172,9 +172,6 @@ public class ExplodingPriest extends Enemy {
 
         isAlive = false;
 
-        if (diedWhileCharging)
-            gameWorld.spawnOrbs(this, player);
-
         gameWorld.removeEnemy(this);
     }
 
@@ -222,7 +219,7 @@ public class ExplodingPriest extends Enemy {
             if (state == PriestState.CHARGING) diedWhileCharging = true;
             isAlive = false;
             gameWorld.removeEnemy(this);
-            if (diedWhileCharging) gameWorld.spawnOrbs(this, player);
+            gameWorld.spawnOrbs(this, player);
         }
     }
 
