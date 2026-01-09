@@ -34,7 +34,7 @@ public class GameScreen implements Screen {
     private ExtendViewport UIViewport;
 
     // Fonts and layouts
-    private BitmapFont scoreFont, waveFont, comboFont, levelFont, skillFont;
+    private BitmapFont scoreFont, waveFont, comboFont, levelFont, skillFont, tutorialFont;
     private GlyphLayout scoreLayout, waveLayout, comboLayout, levelLayout;
 
     // Game world and UI
@@ -97,6 +97,10 @@ public class GameScreen implements Screen {
         param.borderWidth = 0f;
         levelFont = generator.generateFont(param);
 
+        param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
+        param.color = Color.WHITE;
+        tutorialFont = generator.generateFont(param);
+
         generator.dispose();
 
         scoreLayout = new GlyphLayout();
@@ -141,6 +145,7 @@ public class GameScreen implements Screen {
             comboFont,
             levelFont,
             skillFont,
+            tutorialFont,
             playerUI,
             wavePanel,
             barsBackground,

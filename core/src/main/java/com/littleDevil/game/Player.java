@@ -71,7 +71,7 @@ public class Player {
     public boolean levelUp = false;
     public boolean xpOverflowAnimating = false;
 
-    public int skillPoints = 1;
+    public int skillPoints = 0;
 
     public enum StatType {
         ATTACK,
@@ -147,7 +147,7 @@ public class Player {
             performDash(moveX, moveY);
 
         // Attack
-        if (!isDashing && !isAttacking && !isOnStairs(gameWorld) && !isUnreachable(gameWorld) && attackCooldownTimer <= 0 && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT))
+        if (!isDashing && !isAttacking && !isOnStairs(gameWorld) && !isOnAltar(gameWorld) && !isUnreachable(gameWorld) && attackCooldownTimer <= 0 && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT))
             performAttack();
 
         // Apply movement

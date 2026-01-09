@@ -45,9 +45,27 @@ public class GameWorld {
     public boolean canStartNextWave = true;
 
     public float nextWaveTimer = 0f;
-    public float TIME_BETWEEN_WAVES = 10f; // <--- The 10s variable
+    public float TIME_BETWEEN_WAVES = 10f;
     public boolean waitingForNextWave = false;
 
+    // --- NEW INDEPENDENT SPAWN SYSTEM ---
+    // Spawn Intervals
+    private final float TEMPLAR_SPAWN_INTERVAL = 5f;
+    private final float NUN_SPAWN_INTERVAL = 12f;
+    private final float PRIEST_SPAWN_INTERVAL = 20f;
+
+    // Timers
+    private float templarTimer = 0f;
+    private float nunTimer = 0f;
+    private float priestTimer = 0f;
+
+    // Remaining count for current wave
+    private int templarsToSpawn = 0;
+    private int nunsToSpawn = 0;
+    private int priestsToSpawn = 0;
+    // ------------------------------------
+
+    public boolean basicTutorialDone = false;
 
     // Candle Decorations
     private Texture candleSheet;
@@ -74,22 +92,19 @@ public class GameWorld {
     public List<Explosion> explosions = new ArrayList<>();
     public ArrayList<HealingAnimation> healAnimations = new ArrayList<>();
 
-    private List<EnemyType> enemySpawnQueue = new ArrayList<>();
-    private float spawnQueueTimer = 0f;
-    private final float SPAWN_DELAY = 3f;
-
     public enum EnemyType {
         TEMPLAR,
         NUN,
         PRIEST
     }
 
-    public float priestSpawnInterval = 12f;
-    private float priestSpawnTimer = 0f;
+    // Infinite pressure mechanic (separate from wave spawn count)
+    public float infinitePriestInterval = 12f;
+    private float infinitePriestTimer = 0f;
 
     // Public UI info to be displayed on screen
     public float score = 0f;
-    public int wave = 1;
+    public int wave = 1; // Default to 1
     public int combo = 0;
 
     public GameWorld(int mapWidth, int mapHeight, int tileSize, GameScreen gameScreen) {
@@ -115,7 +130,6 @@ public class GameWorld {
         // Automatically start the countdown for Wave 1
         waitingForNextWave = true;
         canStartNextWave = false;
-        // -----------------------------------------------------------
 
         // Altars
         bigAltar = new BigAltar(262, 200, "Spritesheets/bigAltarSpritesheet.png");
@@ -145,10 +159,10 @@ public class GameWorld {
         // Generates grid used in Pathfinder Class
         generateCollisionGrid();
 
-        // Damage Font init - white so we can customize it later (Tint)
+        // Damage Font init
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
-        param.size = (int)(Gdx.graphics.getHeight() * 0.022f); // scale relative to screen
+        param.size = (int)(Gdx.graphics.getHeight() * 0.022f);
         param.color = Color.WHITE;
         damageFont = generator.generateFont(param);
         generator.dispose();
@@ -158,13 +172,36 @@ public class GameWorld {
     public void update(float delta, GameScreen gameScreen) {
         player.update(delta, this);
 
-        // 1. Process Spawn Queue
-        if (!enemySpawnQueue.isEmpty()) {
-            spawnQueueTimer += delta;
-            if (spawnQueueTimer >= SPAWN_DELAY) {
-                spawnQueueTimer = 0f;
-                EnemyType typeToSpawn = enemySpawnQueue.remove(0);
-                spawnEnemy(typeToSpawn);
+        // 1. Process Spawn Logic (Independent Timers)
+        if (waveActive) {
+            // Templar Spawning (5s)
+            if (templarsToSpawn > 0) {
+                templarTimer += delta;
+                if (templarTimer >= TEMPLAR_SPAWN_INTERVAL) {
+                    templarTimer = 0f;
+                    spawnEnemy(EnemyType.TEMPLAR);
+                    templarsToSpawn--;
+                }
+            }
+
+            // Nun Spawning (12s)
+            if (nunsToSpawn > 0) {
+                nunTimer += delta;
+                if (nunTimer >= NUN_SPAWN_INTERVAL) {
+                    nunTimer = 0f;
+                    spawnEnemy(EnemyType.NUN);
+                    nunsToSpawn--;
+                }
+            }
+
+            // Priest Spawning (20s)
+            if (priestsToSpawn > 0) {
+                priestTimer += delta;
+                if (priestTimer >= PRIEST_SPAWN_INTERVAL) {
+                    priestTimer = 0f;
+                    spawnEnemy(EnemyType.PRIEST);
+                    priestsToSpawn--;
+                }
             }
         }
 
@@ -198,13 +235,13 @@ public class GameWorld {
             if (timeSinceLastHit > comboTimeout) combo = 0;
         }
 
-        // Infinite priests after Wave 6
+        // Infinite priests after Wave 6 (Separate mechanic from wave budget)
         if (waveActive && wave >= 6) {
-            priestSpawnTimer += delta;
-            if (priestSpawnTimer >= priestSpawnInterval) {
-                priestSpawnTimer = 0f;
+            infinitePriestTimer += delta;
+            if (infinitePriestTimer >= infinitePriestInterval) {
+                infinitePriestTimer = 0f;
                 spawnEnemy(EnemyType.PRIEST);
-                enemiesAlive++; // UI Update only
+                enemiesAlive++;
             }
         }
 
@@ -214,12 +251,17 @@ public class GameWorld {
             enemiesToRemove.clear();
         }
 
-        // 6. Check Wave End Condition (SOURCE OF TRUTH FIX)
+        // 6. Check Wave End Condition
         // Wave ends only if:
         // A) We are in a wave
-        // B) No enemies are waiting in the queue
+        // B) All specific spawn counters are exhausted
         // C) No enemies are physically in the world
-        if (waveActive && enemySpawnQueue.isEmpty() && enemies.isEmpty()) {
+        if (waveActive &&
+            templarsToSpawn == 0 &&
+            nunsToSpawn == 0 &&
+            priestsToSpawn == 0 &&
+            enemies.isEmpty()) {
+
             endWave();
         }
 
@@ -506,7 +548,6 @@ public class GameWorld {
         }
 
         // If we failed 10 times, force spawn at the last calculated position
-        // to prevent the game from soft-locking (waiting for an enemy that never spawns).
         if (!valid) {
             System.out.println("Warning: Forced spawn for " + type);
         }
@@ -608,19 +649,24 @@ public class GameWorld {
         canStartNextWave = false;
         combo = 0;
         timeSinceLastHit = 0f;
-        priestSpawnTimer = 0f;
+        infinitePriestTimer = 0f;
 
         // Clamp wave index (safety)
         int index = Math.min(wave - 1, WaveManager.waves.length - 1);
         Wave w = WaveManager.waves[index];
 
-        enemySpawnQueue.clear();
-        spawnQueueTimer = 0f; // Reset timer so first one spawns instantly
+        // --- NEW SPAWN SETUP ---
+        // Load the counts for this specific wave
+        templarsToSpawn = w.templars;
+        nunsToSpawn = w.nuns;
+        priestsToSpawn = w.priests;
 
-        // Add to Queue instead of spawning immediately
-        for (int i = 0; i < w.templars; i++) enemySpawnQueue.add(EnemyType.TEMPLAR);
-        for (int i = 0; i < w.nuns; i++)     enemySpawnQueue.add(EnemyType.NUN);
-        for (int i = 0; i < w.priests; i++)  enemySpawnQueue.add(EnemyType.PRIEST);
+        // Reset timers.
+        // We set them to the INTERVAL so the first batch spawns immediately upon wave start,
+        // rather than making the player wait 5-20 seconds for the first enemy.
+        templarTimer = TEMPLAR_SPAWN_INTERVAL;
+        nunTimer = NUN_SPAWN_INTERVAL;
+        priestTimer = PRIEST_SPAWN_INTERVAL;
     }
 
     public void endWave() {
@@ -632,5 +678,4 @@ public class GameWorld {
         wave++;
         if (wave > 10) wave = 10;
     }
-
 }

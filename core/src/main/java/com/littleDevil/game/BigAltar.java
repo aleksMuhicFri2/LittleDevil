@@ -69,7 +69,7 @@ public class BigAltar {
         // --- Player on altar ---
         if (onAltar) {
 
-            // Animate altar opening
+            // Animate altar opening (Visual feedback always happens)
             if (!reversing) {
                 frameIndex++;
                 if (frameIndex > 9) frameIndex = 9;
@@ -77,9 +77,13 @@ public class BigAltar {
                 reversing = false;
             }
 
-            // ✔️ TRIGGER UPGRADE PAGE WHEN FULLY LIT
+            // Only open UI if animation is ready AND tutorial is finished
             if (frameIndex >= 6) {
-                gameWorld.gameScreen.uiManager.openUpgradePage();
+                if (gameWorld.basicTutorialDone) {
+                    gameWorld.gameScreen.uiManager.openUpgradePage();
+                }
+                // If tutorial isn't done, we simply do nothing here
+                // The altar glows, but the menu refuses to open
             }
 
         }

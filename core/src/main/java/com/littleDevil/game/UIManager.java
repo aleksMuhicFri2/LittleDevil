@@ -49,6 +49,8 @@ public class UIManager {
 
     private final Vector3 tmp = new Vector3();
 
+    private TutorialManager tutorialManager;
+
 
     public UIManager(
         GameWorld world,
@@ -61,6 +63,7 @@ public class UIManager {
         BitmapFont comboFont,
         BitmapFont levelFont,
         BitmapFont skillPointsFont, // Parameter is now correctly handled
+        BitmapFont tutorialFont,
         Texture playerUI,
         Texture wavePanel,
         Texture barsBackground,
@@ -81,6 +84,7 @@ public class UIManager {
         this.levelFont = levelFont;
         // 2. Assign skillPointsFont
         this.skillPointsFont = skillPointsFont;
+        this.tutorialManager = new TutorialManager(world, tutorialFont);
 
         scoreLayout = new GlyphLayout();
         waveLayout = new GlyphLayout();
@@ -130,6 +134,7 @@ public class UIManager {
         batch.setProjectionMatrix(camera.combined);
 
         updatePlayerDisplayValues(Gdx.graphics.getDeltaTime());
+        tutorialManager.update(Gdx.graphics.getDeltaTime());
 
         boolean tabHeld = Gdx.input.isKeyPressed(Input.Keys.TAB);
         targetUiOffsetY = tabHeld ? UI_SLIDE_DISTANCE : 0f;
@@ -142,6 +147,8 @@ public class UIManager {
         drawWaveNumber();
         drawScore();
         drawCombo();
+
+        tutorialManager.render(batch, viewport.getWorldWidth(), viewport.getWorldHeight());
 
         if (upgradePageOpen)
             renderUpgradePage();  // overlay, but HUD stays visible
