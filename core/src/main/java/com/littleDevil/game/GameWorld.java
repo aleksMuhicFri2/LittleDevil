@@ -1,5 +1,6 @@
 package com.littleDevil.game;
 
+import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
@@ -67,6 +68,11 @@ public class GameWorld {
 
     public boolean basicTutorialDone = false;
 
+    public AugmentManager augmentManager;
+    // Flag to track if the player has reached a milestone level and needs to pick an augment
+    public boolean augmentSelectionPending = false;
+    private int lastAugmentLevel = 0; // Track last level we got an augment
+
     // Candle Decorations
     private Texture candleSheet;
     Texture pixel = new Texture("whitePixel.png");
@@ -104,8 +110,11 @@ public class GameWorld {
 
     // Public UI info to be displayed on screen
     public float score = 0f;
-    public int wave = 1; // Default to 1
+    public int wave = 10; // Default to 1
     public int combo = 0;
+
+    Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
+    public int difficulty = prefs.getInteger("difficulty", 0);
 
     public GameWorld(int mapWidth, int mapHeight, int tileSize, GameScreen gameScreen) {
         this.gameScreen = gameScreen;
@@ -166,6 +175,8 @@ public class GameWorld {
         param.color = Color.WHITE;
         damageFont = generator.generateFont(param);
         generator.dispose();
+
+        augmentManager = new AugmentManager();
     }
 
     // update all the logic
@@ -251,11 +262,6 @@ public class GameWorld {
             enemiesToRemove.clear();
         }
 
-        // 6. Check Wave End Condition
-        // Wave ends only if:
-        // A) We are in a wave
-        // B) All specific spawn counters are exhausted
-        // C) No enemies are physically in the world
         if (waveActive &&
             templarsToSpawn == 0 &&
             nunsToSpawn == 0 &&
@@ -298,6 +304,13 @@ public class GameWorld {
             HealingAnimation h = healAnimations.get(i);
             h.update(delta);
             if (h.done) healAnimations.remove(i);
+        }
+
+        if (player.level % 5 == 0 && player.level > lastAugmentLevel && augmentManager.hasSpace()) {
+            augmentSelectionPending = true;
+            lastAugmentLevel = (int)player.level;
+            // Optional: Show Tutorial tip
+            // tutorialManager.triggerAugmentAlert();
         }
     }
 
@@ -469,6 +482,7 @@ public class GameWorld {
         smallAltarTopRight.dispose();
         smallAltarBotRight.dispose();
         smallAltarBotLeft.dispose();
+        augmentManager.dispose();
     }
 
     // Class that implements sortable entities for drawing

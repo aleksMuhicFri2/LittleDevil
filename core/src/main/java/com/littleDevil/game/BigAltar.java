@@ -80,7 +80,11 @@ public class BigAltar {
             // Only open UI if animation is ready AND tutorial is finished
             if (frameIndex >= 6) {
                 if (gameWorld.basicTutorialDone) {
-                    gameWorld.gameScreen.uiManager.openUpgradePage();
+                    if (gameWorld.augmentSelectionPending) {
+                        gameWorld.gameScreen.uiManager.openAugmentPage();
+                    } else {
+                        gameWorld.gameScreen.uiManager.openUpgradePage();
+                    }
                 }
                 // If tutorial isn't done, we simply do nothing here
                 // The altar glows, but the menu refuses to open

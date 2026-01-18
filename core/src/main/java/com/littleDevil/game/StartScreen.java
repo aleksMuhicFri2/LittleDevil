@@ -1,5 +1,6 @@
 package com.littleDevil.game;
 
+import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.Screen;
@@ -91,6 +92,12 @@ public class StartScreen implements Screen {
     public void show() {
         batch = new SpriteBatch();
 
+        Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
+        currentDifficulty = prefs.getInteger("difficulty", 0);
+
+        // Camera and viewport
+        camera = new OrthographicCamera();
+
         // Camera and viewport
         camera = new OrthographicCamera();
         viewport = new FitViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, camera);
@@ -156,12 +163,18 @@ public class StartScreen implements Screen {
                 float tx = touchPos.x;
                 float ty = touchPos.y;
 
+                Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
+
                 if (lessDiffButton.contains(tx, ty)) {
                     currentDifficulty = (currentDifficulty + difficulties.length - 1) % difficulties.length;
                     difficultySound.play(0.6f);
+                    prefs.putInteger("difficulty", currentDifficulty);
+                    prefs.flush();
                 } else if (moreDiffButton.contains(tx, ty)) {
                     currentDifficulty = (currentDifficulty + 1) % difficulties.length;
                     difficultySound.play(0.6f);
+                    prefs.putInteger("difficulty", currentDifficulty);
+                    prefs.flush();
                 } else if (playButton.contains(tx, ty)) {
                     playPressed = true;
                     candleLeft.extinguish();
@@ -219,7 +232,15 @@ public class StartScreen implements Screen {
         candleLeft.draw(batch);
         candleRight.draw(batch);
 
-        // Difficulty text
+        // --- NEW: "Difficulty:" Label ---
+        String labelText = "Difficulty:";
+        layout.setText(font, labelText);
+        float labelX = (screenW - layout.width) / 2f;
+        // Position it slightly above the difficulty value (which is at 0.45f)
+        float labelY = screenH * 0.51f;
+        font.draw(batch, layout, labelX, labelY);
+
+        // Difficulty Value Text (Easy, Hard, etc.)
         String difficulty = difficulties[currentDifficulty];
         layout.setText(font, difficulty);
         float diffX = (screenW - layout.width) / 2f;

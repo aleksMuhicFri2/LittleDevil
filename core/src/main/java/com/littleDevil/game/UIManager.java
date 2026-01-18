@@ -2,6 +2,8 @@ package com.littleDevil.game;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
@@ -10,7 +12,10 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
+
+import java.util.List;
 
 public class UIManager {
 
@@ -23,14 +28,22 @@ public class UIManager {
     private final ExtendViewport viewport;
 
     private final BitmapFont scoreFont, waveFont, comboFont, levelFont;
-    // Keeping fields for Skill Points display
     private final BitmapFont skillPointsFont;
 
+    // Removed descFont, we will use tutorialFont instead for better quality
+    private final BitmapFont tooltipFont;
+    // Added reference to tutorialFont here for easy access
+    private final BitmapFont tutorialFont;
+
+
     private final GlyphLayout scoreLayout, waveLayout, comboLayout, levelLayout;
-    // Keeping fields for Skill Points display
     private final GlyphLayout skillPointsLayout;
+    private final GlyphLayout layout;
 
     private final Texture playerUI, wavePanel, barsBackground, healthBar, energyBar, xpBar;
+
+    private final Texture darkOverlay;
+    private final Texture slotBorder;
 
     private float uiOffsetY = 0f;
     private float targetUiOffsetY = 0f;
@@ -38,18 +51,27 @@ public class UIManager {
     private final float UI_SLIDE_SPEED = 8f;
 
     private boolean upgradePageOpen = false;
+    private boolean augmentPageOpen = false;
 
     private float upgradePanelWidth = 500f;
     private float upgradePanelHeight = 380f;
 
     private TextureRegion[][] levelSprites;
-
     private Texture plusButton;
     private Texture panelBackground;
 
     private final Vector3 tmp = new Vector3();
 
     private TutorialManager tutorialManager;
+
+    private final float CARD_SCALE = 4.0f;
+    private final float CARD_W = 48f * CARD_SCALE;
+    private final float CARD_H = 64f * CARD_SCALE;
+    private final float CARD_SPACING = 220f;
+
+    private final float SLOT_SIZE = 40f;
+    private final float SLOT_VISIBLE_Y = 15f;
+    private final float SLOT_SPACING = 29f;
 
 
     public UIManager(
@@ -62,8 +84,8 @@ public class UIManager {
         BitmapFont waveFont,
         BitmapFont comboFont,
         BitmapFont levelFont,
-        BitmapFont skillPointsFont, // Parameter is now correctly handled
-        BitmapFont tutorialFont,
+        BitmapFont skillPointsFont,
+        BitmapFont tutorialFont, // Passed in constructor
         Texture playerUI,
         Texture wavePanel,
         Texture barsBackground,
@@ -74,7 +96,6 @@ public class UIManager {
         this.world = world;
         this.player = player;
         this.batch = batch;
-
         this.camera = camera;
         this.viewport = viewport;
 
@@ -82,16 +103,22 @@ public class UIManager {
         this.waveFont = waveFont;
         this.comboFont = comboFont;
         this.levelFont = levelFont;
-        // 2. Assign skillPointsFont
         this.skillPointsFont = skillPointsFont;
+        this.tutorialFont = tutorialFont; // Assign it
+
+        // Removed descFont initialization
+
+        this.tooltipFont = new BitmapFont();
+        this.tooltipFont.getData().setScale(0.8f);
+
         this.tutorialManager = new TutorialManager(world, tutorialFont);
 
         scoreLayout = new GlyphLayout();
         waveLayout = new GlyphLayout();
         comboLayout = new GlyphLayout();
         levelLayout = new GlyphLayout();
-        // 2. Initialize skillPointsLayout
         skillPointsLayout = new GlyphLayout();
+        layout = new GlyphLayout();
 
         this.playerUI = playerUI;
         this.wavePanel = wavePanel;
@@ -116,6 +143,16 @@ public class UIManager {
         sliceUpgradeSheet(levelSprites[2], defenseSheet);
         sliceUpgradeSheet(levelSprites[3], luckSheet);
         sliceUpgradeSheet(levelSprites[4], superSheet);
+
+        Pixmap pix = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pix.setColor(0f, 0f, 0f, 0.85f);
+        pix.fill();
+        darkOverlay = new Texture(pix);
+
+        pix.setColor(1f, 1f, 1f, 1f);
+        pix.fill();
+        slotBorder = new Texture(pix);
+        pix.dispose();
     }
 
 
@@ -148,32 +185,175 @@ public class UIManager {
         drawScore();
         drawCombo();
 
+        drawAugmentSlots();
+
         tutorialManager.render(batch, viewport.getWorldWidth(), viewport.getWorldHeight());
 
-        if (upgradePageOpen)
-            renderUpgradePage();  // overlay, but HUD stays visible
+        if (augmentPageOpen) {
+            renderAugmentPage();
+        } else if (upgradePageOpen) {
+            renderUpgradePage();
+        }
 
         batch.end();
     }
 
 
-    public void openUpgradePage() { upgradePageOpen = true; }
+    public void openUpgradePage() { if (player.skillPoints > 0) {
+        upgradePageOpen = true;
+    } }
     public void closeUpgradePage() { upgradePageOpen = false; }
+
+    public void openAugmentPage() {
+        if (!augmentPageOpen) {
+            augmentPageOpen = true;
+            world.augmentManager.rollOptions();
+        }
+    }
+    public void closeAugmentPage() { augmentPageOpen = false; }
+
+
+    // --- AUGMENT PAGE RENDERER ---
+    private void renderAugmentPage() {
+        batch.setColor(1f, 1f, 1f, 1f);
+        batch.draw(darkOverlay, camera.position.x - viewport.getWorldWidth()/2, camera.position.y - viewport.getWorldHeight()/2, viewport.getWorldWidth(), viewport.getWorldHeight());
+
+        float centerX = viewport.getWorldWidth() / 2f;
+        float centerY = viewport.getWorldHeight() / 2f;
+
+        float x1 = centerX - CARD_SPACING;
+        float x2 = centerX;
+        float x3 = centerX + CARD_SPACING;
+
+        List<Augment> options = world.augmentManager.currentOptions;
+
+        if (options.size() >= 1) drawAugmentCard(options.get(0), x1, centerY);
+        if (options.size() >= 2) drawAugmentCard(options.get(1), x2, centerY);
+        if (options.size() >= 3) drawAugmentCard(options.get(2), x3, centerY);
+    }
+
+    private void drawAugmentCard(Augment aug, float centerX, float centerY) {
+        float x = centerX - CARD_W / 2f;
+        float y = centerY - CARD_H / 2f;
+
+        // 1. Draw Card Background
+        TextureRegion cardRegion = world.augmentManager.getAugmentCard(aug.iconIndex);
+        if (cardRegion != null) {
+            batch.draw(cardRegion, x, y, CARD_W, CARD_H);
+        } else {
+            batch.setColor(0,0,0,1);
+            batch.draw(slotBorder, x, y, CARD_W, CARD_H);
+            batch.setColor(1,1,1,1);
+        }
+
+
+        // --- DESCRIPTION (White, Smaller, Centered) ---
+        tutorialFont.setColor(Color.WHITE);
+        tutorialFont.getData().setScale(0.5f); // Kept small/readable
+
+        // Wrap width
+        float descWidth = CARD_W - 100f;
+        layout.setText(tutorialFont, aug.description, Color.WHITE, descWidth, Align.center, true);
+
+        // Center Horizontally
+        float descX = x + (CARD_W - layout.width) / 2f - 5f;
+        // Position Y: Lower down in the description box
+        float descY = y + CARD_H * 0.35f;
+
+        tutorialFont.draw(batch, layout, descX, descY);
+
+
+        // Reset font state
+        tutorialFont.getData().setScale(1f);
+        tutorialFont.setColor(Color.WHITE);
+
+
+        // 3. Input Logic
+        if (Gdx.input.justTouched()) {
+            viewport.unproject(tmp.set(Gdx.input.getX(), Gdx.input.getY(), 0));
+            if (tmp.x >= x && tmp.x <= x + CARD_W && tmp.y >= y && tmp.y <= y + CARD_H) {
+                world.augmentManager.selectAugment(aug);
+                world.augmentSelectionPending = false;
+                closeAugmentPage();
+                openUpgradePage();
+            }
+        }
+    }
+
+
+    // --- AUGMENT SLOTS (BOTTOM BAR) ---
+    private void drawAugmentSlots() {
+        float totalWidth = (5 * SLOT_SIZE) + (4 * SLOT_SPACING);
+        float startX = (viewport.getWorldWidth() - totalWidth) / 2f;
+
+        float currentY = (SLOT_VISIBLE_Y - UI_SLIDE_DISTANCE) + uiOffsetY;
+
+        for (int i = 0; i < 5; i++) {
+            // This is the logical top-left corner of the "slot"
+            float slotX = startX + i * (SLOT_SIZE + SLOT_SPACING);
+
+            Augment aug = world.augmentManager.playerSlots[i];
+
+            if (aug != null) {
+                TextureRegion icon = world.augmentManager.getIcon(aug.iconIndex);
+
+                if (icon != null) {
+                    // 1. MAKE IT LARGER
+                    // Multiply SLOT_SIZE by 1.5 (or whatever scale you prefer)
+                    float iconScale = 1.4f;
+                    float drawSize = SLOT_SIZE * iconScale;
+
+                    // 2. CENTER IT
+                    // Formula: SlotPosition + (SlotSize - ImageSize) / 2
+                    float drawX = slotX + (SLOT_SIZE - drawSize) / 2f;
+                    float drawY = currentY + (SLOT_SIZE - drawSize) / 2f;
+
+                    batch.setColor(1f, 1f, 1f, 1f);
+                    batch.draw(icon, drawX, drawY, drawSize, drawSize);
+
+                    // 3. TOOLTIP DETECTION
+                    // We check if the mouse is inside the drawn image area
+                    if (currentY > 0) {
+                        Vector3 mouse = camera.unproject(new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0));
+
+                        if (mouse.x >= drawX && mouse.x <= drawX + drawSize &&
+                            mouse.y >= drawY && mouse.y <= drawY + drawSize) {
+
+                            // Draw tooltip centered above the icon
+                            drawTooltip(aug, slotX + SLOT_SIZE / 2f, drawY + drawSize + 10f);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void drawTooltip(Augment aug, float x, float y) {
+        String text = aug.name + "\n" + aug.description;
+        tooltipFont.getData().setScale(0.8f);
+        layout.setText(tooltipFont, text);
+
+        float w = layout.width + 20f;
+        float h = layout.height + 20f;
+
+        batch.setColor(0f, 0f, 0f, 0.95f);
+        batch.draw(slotBorder, x - w/2f, y, w, h);
+        batch.setColor(1f, 1f, 1f, 1f);
+
+        tooltipFont.setColor(Color.YELLOW);
+        tooltipFont.draw(batch, text, x - layout.width/2f, y + h - 10f);
+        tooltipFont.setColor(Color.WHITE);
+    }
 
 
     private void renderUpgradePage() {
-
         float panelX = camera.position.x - upgradePanelWidth / 2f;
         float panelY = camera.position.y - upgradePanelHeight / 2f;
 
         batch.draw(panelBackground, panelX, panelY, upgradePanelWidth, upgradePanelHeight);
-
-        // 4. Call the new method to draw skill points at the top of the panel
         drawSkillPoints(panelX, panelY, upgradePanelWidth, upgradePanelHeight);
 
         float rowSpacing = 40f;
-
-        // Adjusted to accommodate the new header and the original "UPGRADES" title
         float y1 = panelY + upgradePanelHeight - 130f;
 
         float y2 = y1 - rowSpacing;
@@ -190,24 +370,15 @@ public class UIManager {
 
     private void drawSkillPoints(float panelX, float panelY, float panelW, float panelH) {
         String text = "Skill Points: " + player.skillPoints;
-
-        // Use the skillPointsFont and layout
         skillPointsLayout.setText(skillPointsFont, text);
-
-        // Center the text horizontally within the panel
         float textX = panelX + (panelW - skillPointsLayout.width) / 2f;
-
-        // Position the text near the top edge of the panel (adjusted for the title/header space)
         float textY = panelY + panelH - 80f;
-
         skillPointsFont.draw(batch, text, textX, textY);
     }
 
 
     private void drawUpgradeRow(String label, int statIndex, float y, int level, Player.StatType statType) {
-
         float panelX = camera.position.x - upgradePanelWidth / 2f;
-
         float nameX = panelX + 80;
         float iconX = panelX + 200;
         float plusX = panelX + 400;
@@ -217,11 +388,9 @@ public class UIManager {
         scoreFont.getData().setScale(1f);
 
         TextureRegion icon = levelSprites[statIndex][level];
-
         float iconScale = 2.8f;
         float iw = icon.getRegionWidth() * iconScale;
         float ih = icon.getRegionHeight() * iconScale;
-
         batch.draw(icon, iconX, y - ih * 0.7f, iw, ih);
 
         float btnScale = 2.8f;
@@ -229,21 +398,27 @@ public class UIManager {
         float bh = plusButton.getHeight() * btnScale;
         float plusY = y - bh * 0.7f;
 
-        // CORRECTED: Draw the button unconditionally
-        batch.draw(plusButton, plusX, plusY, bw, bh);
+        // Only draw button if we have points
+        if (player.skillPoints > 0) {
+            batch.draw(plusButton, plusX, plusY, bw, bh);
+        }
 
-        // CORRECTED: Check for touch input unconditionally
         if (Gdx.input.justTouched()) {
             float mx = Gdx.input.getX();
             float my = Gdx.input.getY();
             viewport.unproject(tmp.set(mx, my, 0));
 
+            // Check click
             if (tmp.x >= plusX && tmp.x <= plusX + bw &&
                 tmp.y >= plusY && tmp.y <= plusY + bh) {
 
-                // The player.upgradeStat(statType) method is responsible for checking if
-                // player.skillPoints > 0 before actually spending the point/upgrading.
+                // 1. Spend the point
                 player.upgradeStat(statType);
+
+                // 2. If that was the last point, close the page immediately
+                if (player.skillPoints <= 0) {
+                    closeUpgradePage();
+                }
             }
         }
     }
@@ -252,9 +427,7 @@ public class UIManager {
     private void drawPlayerUI() {
         float baseW = 112f;
         float baseH = 48f;
-
         float scale = getScale(3.5f);
-
         float w = baseW * scale;
         float h = baseH * scale;
 
@@ -266,7 +439,6 @@ public class UIManager {
         float xp = Math.min(1f, player.displayXp / player.neededXp);
 
         batch.draw(barsBackground, x, y, w, h);
-
         batch.draw(healthBar, x + 12f * scale, y + 23f * scale, 43f * scale * hp, 5f * scale);
         batch.draw(energyBar, x + 57f * scale, y + 23f * scale, 43f * scale * en, 5f * scale);
         batch.draw(xpBar,     x + 18f * scale, y + 32f * scale, 76f * scale * xp, 2f * scale);
@@ -338,13 +510,11 @@ public class UIManager {
 
     private void updatePlayerDisplayValues(float delta) {
         float speed = 8f * delta;
-
         player.displayHP = MathUtils.lerp(player.displayHP, player.currentHP, speed);
         player.displayEnergy = MathUtils.lerp(player.displayEnergy, player.currentEnergy, speed);
 
         if (player.xpOverflowAnimating) {
             player.displayXp = MathUtils.lerp(player.displayXp, player.previousNeededXp, speed);
-
             if (Math.abs(player.displayXp - player.previousNeededXp) < 1f) {
                 player.displayXp = 0f;
                 player.xpOverflowAnimating = false;
@@ -370,5 +540,12 @@ public class UIManager {
 
     public void resize(int w, int h) {
         viewport.update(w, h, true);
+    }
+
+    public void dispose() {
+        if(tutorialManager != null) tutorialManager.dispose();
+        if(darkOverlay != null) darkOverlay.dispose();
+        if(slotBorder != null) slotBorder.dispose();
+        if(tooltipFont != null) tooltipFont.dispose();
     }
 }
