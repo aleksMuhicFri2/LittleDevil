@@ -14,14 +14,14 @@ public class Orb {
     private Vector2 velocity;
     private float distanceTraveled = 0f;
     private float pulseTime = 0f;
-    private float pullTime = 0f; // time orb has been in pull range
+    private float pullTime = 0f;
 
-    public float lifetime = 20f; // seconds
+    public float lifetime = 20f;
     public OrbType type;
     public boolean isPulled = false;
 
-    private final float PULL_RADIUS = 18f;
-    private final float PULL_SPEED = 12f;
+    private final float PULL_RADIUS = 20f;
+    private final float PULL_SPEED = 14f;
     private final float MAX_PULL_SPEED = 250f;
     private final float MAX_RANGE;
     private final float ORB_SPEED;
@@ -29,8 +29,8 @@ public class Orb {
     private TextureRegion[] orbFrames;
     private TextureRegion currentFrame;
 
-    private float spawnTime; // time since orb spawned
-    private final float PULL_DELAY = 0.3f; // 0.2 seconds before pull is allowed
+    private float spawnTime;
+    private final float PULL_DELAY = 0.3f;
 
     private Random rand = new Random();
 
@@ -45,20 +45,28 @@ public class Orb {
         }
         currentFrame = orbFrames[type.ordinal()];
 
-        // Set the initial velocity as passed
         this.velocity = initialVelocity;
         ORB_SPEED = velocity.len();
 
-        // Random max range for natural scatter deceleration
         MAX_RANGE = 20f + rand.nextFloat() * 10f;
-        spawnTime = 0f; // starts at 0
+        spawnTime = 0f;
     }
 
     public void update(float delta, Player player, GameWorld world) {
         if (lifetime <= 0f) return;
         lifetime -= delta;
-        spawnTime += delta; // track time since spawn
+        spawnTime += delta;
         pulseTime += delta;
+
+        // --- EMERGENCY UNSTUCK LOGIC ---
+        if (isBlocked(x, y, world)) {
+            Vector2 escapeDir = new Vector2(player.x - x, player.y - y).nor();
+            // Move slowly towards player to escape wall
+            x += escapeDir.x * 60f * delta;
+            y += escapeDir.y * 60f * delta;
+            return; // Skip normal physics this frame
+        }
+        // -------------------------------
 
         float playerLeft = player.x + player.collisionOffsetX;
         float playerRight = playerLeft + player.collisionWidth;
@@ -71,13 +79,12 @@ public class Orb {
         Vector2 dirToPlayer = new Vector2(closestX - x, closestY - y);
         float distanceToPlayer = dirToPlayer.len();
 
-        // Pull logic only after delay
+        // Pull logic
         if (spawnTime >= PULL_DELAY && distanceToPlayer < PULL_RADIUS) {
-            pullTime += delta; // accumulate pull time
+            pullTime += delta;
             isPulled = true;
 
-            // Gravity-like acceleration
-            float gravityFactor = Math.min(pullTime, 2f); // clamp for safety
+            float gravityFactor = Math.min(pullTime, 2f);
             float pullSpeed = Math.min(PULL_SPEED + gravityFactor * 100f, MAX_PULL_SPEED);
 
             dirToPlayer.nor();
@@ -87,18 +94,31 @@ public class Orb {
             isPulled = false;
         }
 
-        // Move orb with collision
-        Vector2 newPos = new Vector2(x + velocity.x * delta, y + velocity.y * delta);
-        if (!isBlocked(newPos.x, y, world)) x = newPos.x;
-        if (!isBlocked(x, newPos.y, world)) y = newPos.y;
+        // --- BOUNCE PHYSICS ---
+        // Predict X movement
+        float nextX = x + velocity.x * delta;
+        if (isBlocked(nextX, y, world)) {
+            velocity.x = -velocity.x * 0.8f; // Bounce X
+        } else {
+            x = nextX;
+        }
 
-        // Natural scatter deceleration
+        // Predict Y movement
+        float nextY = y + velocity.y * delta;
+        if (isBlocked(x, nextY, world)) {
+            velocity.y = -velocity.y * 0.8f; // Bounce Y
+        } else {
+            y = nextY;
+        }
+
+        // Deceleration
         if (!isPulled) {
             distanceTraveled += velocity.len() * delta;
             if (distanceTraveled >= MAX_RANGE) velocity.scl(0.95f);
         } else {
             if (distanceToPlayer < 6f) { // collected
                 player.addXP(getXP());
+                world.playOrbSound();
                 lifetime = 0f;
             }
         }
@@ -112,6 +132,9 @@ public class Orb {
     }
 
     private boolean isBlocked(float testX, float testY, GameWorld world) {
+        // Safety check for map bounds
+        if (testX < 0 || testX >= world.mapWidth || testY < 0 || testY >= world.mapHeight) return true;
+
         int tileX = (int)(testX / world.tileSize);
         int tileY = (int)(testY / world.tileSize);
         return world.isTileType(tileX, tileY, GameWorld.TileType.BLOCK);

@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.audio.Sound;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +45,7 @@ public class GameWorld {
     public float timeSinceLastHit = 0f;
     public final float comboTimeout = 3f;
     public boolean canStartNextWave = true;
+    public Sound waveSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/deathBellSound.mp3"));
 
     public float nextWaveTimer = 0f;
     public float TIME_BETWEEN_WAVES = 10f;
@@ -75,6 +77,11 @@ public class GameWorld {
 
     // Candle Decorations
     private Texture candleSheet;
+
+    // NEW: Loaded once to save performance
+    private Texture orbSheet;
+    private Sound orbPickupSound;
+
     Texture pixel = new Texture("whitePixel.png");
     Texture potionSheet = new Texture("Spritesheets/nunPotionSpritesheet.png");
     public Texture explosionTexture = new Texture("Spritesheets/explosionAnimation.png");
@@ -104,17 +111,18 @@ public class GameWorld {
         PRIEST
     }
 
-    // Infinite pressure mechanic (separate from wave spawn count)
-    public float infinitePriestInterval = 12f;
-    private float infinitePriestTimer = 0f;
-
     // Public UI info to be displayed on screen
     public float score = 0f;
-    public int wave = 10; // Default to 1
+    public int wave = 1; // Default to 1
     public int combo = 0;
+
+    public boolean gameWon = false;
 
     Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
     public int difficulty = prefs.getInteger("difficulty", 0);
+
+    private float passiveScoreTimer = 0f;
+    private final int[] PASSIVE_SCORE_RATES = { 1, 2, 3, 5 };
 
     public GameWorld(int mapWidth, int mapHeight, int tileSize, GameScreen gameScreen) {
         this.gameScreen = gameScreen;
@@ -129,6 +137,10 @@ public class GameWorld {
     public void initialize() {
         // Map
         mapTexture = new Texture("MapAssets/map.png");
+
+        // NEW: Load orb texture once
+        orbSheet = new Texture("Spritesheets/xpOrbs.png");
+        orbPickupSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/xpPickupSound.mp3"));
 
         // Player
         player = new Player(302, 236, "Spritesheets/playerSpriteSheet.png", this);
@@ -184,7 +196,15 @@ public class GameWorld {
         player.update(delta, this);
 
         // 1. Process Spawn Logic (Independent Timers)
-        if (waveActive) {
+        if (waveActive && !player.isOnAltar(this)) {
+
+            passiveScoreTimer += delta;
+            if (passiveScoreTimer >= 1f) {
+                passiveScoreTimer = 0f;
+                int diffIndex = MathUtils.clamp(difficulty, 0, PASSIVE_SCORE_RATES.length - 1);
+                score += PASSIVE_SCORE_RATES[diffIndex];
+            }
+
             // Templar Spawning (5s)
             if (templarsToSpawn > 0) {
                 templarTimer += delta;
@@ -246,16 +266,6 @@ public class GameWorld {
             if (timeSinceLastHit > comboTimeout) combo = 0;
         }
 
-        // Infinite priests after Wave 6 (Separate mechanic from wave budget)
-        if (waveActive && wave >= 6) {
-            infinitePriestTimer += delta;
-            if (infinitePriestTimer >= infinitePriestInterval) {
-                infinitePriestTimer = 0f;
-                spawnEnemy(EnemyType.PRIEST);
-                enemiesAlive++;
-            }
-        }
-
         // 5. Remove Dead Enemies
         if (!enemiesToRemove.isEmpty()) {
             enemies.removeAll(enemiesToRemove);
@@ -309,8 +319,6 @@ public class GameWorld {
         if (player.level % 5 == 0 && player.level > lastAugmentLevel && augmentManager.hasSpace()) {
             augmentSelectionPending = true;
             lastAugmentLevel = (int)player.level;
-            // Optional: Show Tutorial tip
-            // tutorialManager.triggerAugmentAlert();
         }
     }
 
@@ -475,6 +483,10 @@ public class GameWorld {
     public void dispose() {
         mapTexture.dispose();
         candleSheet.dispose();
+
+        // NEW: Dispose the orb sheet
+        if (orbSheet != null) orbSheet.dispose();
+
         if (player != null) player.dispose();
         for (Enemy e : enemies) e.dispose();
         bigAltar.dispose();
@@ -483,6 +495,7 @@ public class GameWorld {
         smallAltarBotRight.dispose();
         smallAltarBotLeft.dispose();
         augmentManager.dispose();
+        orbPickupSound.dispose();
     }
 
     // Class that implements sortable entities for drawing
@@ -590,63 +603,55 @@ public class GameWorld {
     }
 
     public void spawnOrbs(Enemy enemy, Player player) {
-        Texture orbSheet = new Texture("Spritesheets/xpOrbs.png");
         Random rand = new Random();
-
-        // Angle from enemy to player
         float angleToPlayer = (float) Math.atan2(player.y - enemy.y, player.x - enemy.x);
-
-        // Back direction (opposite the player)
         float backAngle = angleToPlayer + (float) Math.PI;
 
-        // Spawn all guaranteed orbs for each type
         for (int i = 0; i < enemy.guaranteedOrbsCounts.length; i++) {
-            Orb.OrbType type;
-            switch (i) {
-                case 0 -> type = Orb.OrbType.COMMON;
-                case 1 -> type = Orb.OrbType.RARE;
-                case 2 -> type = Orb.OrbType.GOLD;
-                default -> type = Orb.OrbType.COMMON;
-            }
-
+            Orb.OrbType type = (i == 1) ? Orb.OrbType.RARE : (i == 2 ? Orb.OrbType.GOLD : Orb.OrbType.COMMON);
             int guaranteed = (int) enemy.guaranteedOrbsCounts[i];
             for (int j = 0; j < guaranteed; j++) {
-                // Random angle within 90° behind enemy
-                float offset = ((rand.nextFloat() - 0.5f) * (float) Math.PI); // -45° to +45°
-                float angle = backAngle + offset;
-
-                float speed = 65f + rand.nextFloat() * 20f;
-                Vector2 initialVelocity = new Vector2(
-                    (float) Math.cos(angle) * speed,
-                    (float) Math.sin(angle) * speed
-                );
-
-                orbs.add(new Orb(enemy.x, enemy.y, type, orbSheet, initialVelocity));
+                spawnSingleOrb(enemy, backAngle, type, 65f, 20f, rand, player);
             }
         }
-
-        // Handle extra chance orbs
         for (int i = 0; i < enemy.firstExtraChances.length; i++) {
             if (rand.nextFloat() < enemy.firstExtraChances[i]) {
-                Orb.OrbType type;
-                switch (i) {
-                    case 0 -> type = Orb.OrbType.COMMON;
-                    case 1 -> type = Orb.OrbType.RARE;
-                    case 2 -> type = Orb.OrbType.GOLD;
-                    default -> type = Orb.OrbType.COMMON;
-                }
-
-                float offset = ((rand.nextFloat() - 0.5f) * (float) Math.PI); // -45° to +45°
-                float angle = backAngle + offset;
-                float speed = 100f + rand.nextFloat() * 30f;
-                Vector2 initialVelocity = new Vector2(
-                    (float) Math.cos(angle) * speed,
-                    (float) Math.sin(angle) * speed
-                );
-
-                orbs.add(new Orb(enemy.x, enemy.y, type, orbSheet, initialVelocity));
+                Orb.OrbType type = (i == 1) ? Orb.OrbType.RARE : (i == 2 ? Orb.OrbType.GOLD : Orb.OrbType.COMMON);
+                spawnSingleOrb(enemy, backAngle, type, 100f, 30f, rand, player);
             }
         }
+    }
+
+    // NEW HELPER: Handles wall checking before spawn to prevent instant sticking
+    private void spawnSingleOrb(Enemy enemy, float backAngle, Orb.OrbType type, float baseSpeed, float randSpeed, Random rand, Player player) {
+        float offset = ((rand.nextFloat() - 0.5f) * (float) Math.PI);
+        float angle = backAngle + offset;
+        float speed = baseSpeed + rand.nextFloat() * randSpeed;
+
+        float vx = (float) Math.cos(angle) * speed;
+        float vy = (float) Math.sin(angle) * speed;
+
+        // PREDICTIVE SPAWN LOGIC:
+        // If the intended "scatter" direction hits a wall immediately (within 20px),
+        // FORCE the orb to fly towards the player instead.
+        float checkDist = 20f;
+        float futureX = enemy.x + (vx > 0 ? checkDist : -checkDist);
+        float futureY = enemy.y + (vy > 0 ? checkDist : -checkDist);
+
+        boolean blockedX = isTileType((int)(futureX / tileSize), (int)(enemy.y / tileSize), TileType.BLOCK);
+        boolean blockedY = isTileType((int)(enemy.x / tileSize), (int)(futureY / tileSize), TileType.BLOCK);
+
+        if (blockedX || blockedY) {
+            // Blocked! Shoot towards player.
+            float angleToPlayer = (float) Math.atan2(player.y - enemy.y, player.x - enemy.x);
+            // Add slight randomness so they don't stack perfectly line
+            angleToPlayer += (rand.nextFloat() - 0.5f) * 0.5f;
+
+            vx = (float) Math.cos(angleToPlayer) * speed;
+            vy = (float) Math.sin(angleToPlayer) * speed;
+        }
+
+        orbs.add(new Orb(enemy.x, enemy.y, type, orbSheet, new Vector2(vx, vy)));
     }
 
     public void spawnBottleToPoint(float startX, float startY, float targetX, float targetY, float damage) {
@@ -658,12 +663,12 @@ public class GameWorld {
         if (!canStartNextWave) return;
 
         System.out.println(">>> WAVE " + wave + " HAS STARTED! <<<");
+        waveSound.play(0.1f);
 
         waveActive = true;
         canStartNextWave = false;
         combo = 0;
         timeSinceLastHit = 0f;
-        infinitePriestTimer = 0f;
 
         // Clamp wave index (safety)
         int index = Math.min(wave - 1, WaveManager.waves.length - 1);
@@ -684,12 +689,25 @@ public class GameWorld {
     }
 
     public void endWave() {
+        if (wave == 10) {
+            waveActive = false;
+            gameWon = true;
+            waitingForNextWave = false; // Stop the timer for the next wave
+            System.out.println(">>> VICTORY! <<<");
+            return;
+        }
+
+        // Normal wave transition
         waveActive = false;
         waitingForNextWave = true;
         nextWaveTimer = 0f;
         canStartNextWave = false;
-
         wave++;
-        if (wave > 10) wave = 10;
+    }
+
+    public void playOrbSound(){
+        float randomVolume = 0.05f + (float)Math.random() * 0.02f;
+        float randomPitch = 0.8f + (float)Math.random() * 0.5f;
+        orbPickupSound.play(randomVolume, randomPitch, 0f);
     }
 }

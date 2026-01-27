@@ -10,15 +10,10 @@ import com.badlogic.gdx.math.Vector2;
 
 public class Templar extends Enemy {
 
-    private Texture shieldSpritesheet;
+    private final Texture shieldSpritesheet;
     public TextureRegion currentShieldFrame;
-    private TextureRegion[] templarFrames, shieldFrames;
+    private final TextureRegion[] templarFrames, shieldFrames;
 
-    public float BASE_HP = 200f;
-    public float WAVE_HP_INCREMENT = 20f;
-
-    public float BASE_DAMAGE = 20f;
-    public float WAVE_DAMAGE_INCREMENT = 2f;
 
     public enum TemplarState {
         CHASING,
@@ -33,7 +28,7 @@ public class Templar extends Enemy {
     private final float ATTACK_RANGE = 40f;
     private final float CHANNEL_TIME = 0.7f;
     private final float BASH_DURATION = 0.4f;
-    private final float BASH_SPEED = moveSpeed * 6f;
+    private final float BASH_SPEED; // is set in constructor
     private final float BASH_COOLDOWN = 3f;
     private float bashCooldownTimer = 0f;
     private final float POST_HIT_PAUSE = 1f;
@@ -53,7 +48,7 @@ public class Templar extends Enemy {
     // For Death Animation
     private float helmetY;
     private float helmetVelocity = 0f;
-    private final float GRAVITY = 300f; // tweak for drop speed
+    private final float GRAVITY = 300f;
     private final float GROUND_OFFSET = 16f;
 
     public Templar(float x, float y, GameWorld world) {
@@ -61,10 +56,18 @@ public class Templar extends Enemy {
         shieldSpritesheet = new Texture("Spritesheets/shieldSpritesheet.png");
         bashSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/shieldBash.mp3"));
 
-        HP = BASE_HP + (world.wave - 1) * WAVE_HP_INCREMENT;
-        damage = BASE_DAMAGE +  (world.wave - 1) * WAVE_DAMAGE_INCREMENT;
+        UnitStats.StatsResult stats = UnitStats.get(UnitStats.UnitType.TEMPLAR, world.wave, world.difficulty);
 
-        moveSpeed = 30f;
+        this.HP = stats.maxHp;
+        this.damage = stats.damage;
+        this.moveSpeed = stats.speed;
+        this.intelligence = stats.intelligence;
+        this.scoreValue = stats.score;
+        // ------------------------------------
+
+        // Calculate derived stats
+        this.BASH_SPEED = moveSpeed * 6f;
+
         knockbackDecay = 150f;
 
         hitboxOffsetX = -12;
@@ -72,9 +75,9 @@ public class Templar extends Enemy {
         hitboxWidth = 24;
         hitboxHeight = 20;
 
-        guaranteedOrbsCounts = new float [] {2, 0, 0};
-        firstExtraChances = new float [] {0.30f, 0.10f, 0.02f};
-        orbProbabilityDecays = new float [] {0.50f, 0.50f, 0.50f};
+        guaranteedOrbsCounts = new float [] {3, 0, 0};
+        firstExtraChances = new float [] {0.20f, 0.10f, 0.02f};
+        orbProbabilityDecays = new float [] {0.40f, 0.50f, 0.50f};
 
         templarFrames = new TextureRegion[4];
         for (int i = 0; i < 4; i++) templarFrames[i] = new TextureRegion(spriteSheet, i * 32, 0, 32, 32);
@@ -96,7 +99,7 @@ public class Templar extends Enemy {
                 stateTimer = 0f;
 
                 // Prevent an instant bash the millisecond player walks out
-                bashCooldownTimer = Math.max(bashCooldownTimer, 1f);
+                bashCooldownTimer = Math.max(bashCooldownTimer, 0.5f);
 
                 // Move normally
                 followPath(gameWorld, delta);
@@ -280,7 +283,7 @@ public class Templar extends Enemy {
 
         if (overlapX && overlapY) {
             hitPlayerThisBash = true;
-            player.currentHP -= damage;
+            player.loseHP(damage);
             bashSound.play(0.2f);
             gameScreen.triggerTimePause(0.2f, 0.2f);
 
@@ -367,6 +370,8 @@ public class Templar extends Enemy {
         if (!isAlive) return;
         isAlive = false;
 
+        gameWorld.score += this.scoreValue;
+
         currentFrame = templarFrames[3];
         currentShieldFrame = shieldFrames[8];
 
@@ -374,6 +379,4 @@ public class Templar extends Enemy {
         helmetVelocity = 10f;
         gameWorld.spawnOrbs(this, player);
     }
-
-
 }

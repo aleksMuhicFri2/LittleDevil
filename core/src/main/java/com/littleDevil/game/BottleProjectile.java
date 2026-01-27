@@ -155,7 +155,7 @@ public class BottleProjectile {
         boolean overlapY = pTop > bottom && pBottom < top;
 
         if (overlapX && overlapY) {
-            player.currentHP -= bottleDamage;
+            player.loseHP(bottleDamage);
         }
     }
 

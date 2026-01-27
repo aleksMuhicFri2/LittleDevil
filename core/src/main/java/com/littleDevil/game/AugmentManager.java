@@ -58,15 +58,15 @@ public class AugmentManager {
 
     private void initializeAugments() {
         // --- 1. VAMPIRIC ---
-        masterAugmentList.add(new Augment("VAMPIRIC", "Vampiric", "Lose Dmg near light Gain Lifesteal", 0));
+        masterAugmentList.add(new Augment("VAMPIRIC", "Vampiric", "Lose DMG near light, Gain Lifesteal", 0));
         // --- 2. BLOODTHIRSTY ---
-        masterAugmentList.add(new Augment("BLOODTHIRSTY", "Bloodthirsty", "Attack boost after a kill", 1));
-        // --- 3. LUCKY THREES ---
-        masterAugmentList.add(new Augment("LUCKY_THREES", "Lucky Threes", "3rd Attack Heals & Deals Bonus Dmg", 2));
-        // --- 4. POISON BLADE ---
-        masterAugmentList.add(new Augment("POISON_BLADE", "Poison Blade", "Attacks apply Poison (% HP)", 3));
+        masterAugmentList.add(new Augment("BLOODTHIRSTY", "Bloodthirsty", "Attack DMG boost after a kill", 1));
+// -    -- 3. POISON BLADE ---
+        masterAugmentList.add(new Augment("POISON_BLADE", "Poison Blade", "Attacks apply Poison", 2));
+        // --- 4. LUCKY THREES ---
+        masterAugmentList.add(new Augment("LUCKY_THREES", "Lucky Threes", "Every 3rd Attack Heals & Deals Bonus Dmg", 3));
         // --- 5. AURA FARMING ---
-        masterAugmentList.add(new Augment("AURA_FARMING", "Aura Farming", "Stand Still: Forcefield + Regen", 4));
+        masterAugmentList.add(new Augment("AURA_FARMING", "Aura Farming", "If you stand Still: Forcefield + HP Regen", 4));
         // --- 6. VETERAN ---
         masterAugmentList.add(new Augment("VETERAN", "Veteran", "Taking Dmg increases Defense temporarily", 5));
         // --- 7. SLOW GROWTH ---
@@ -74,25 +74,25 @@ public class AugmentManager {
         // --- 8. SUSPICIOUS DRUG ---
         masterAugmentList.add(new Augment("SUS_DRUG", "Sus Drug", "Trade Atk Stats for Vitality", 7));
         // --- 9. THE FLASH ---
-        masterAugmentList.add(new Augment("THE_FLASH", "The Flash", "Speed when moving Dmg scales w/ Spd", 8));
+        masterAugmentList.add(new Augment("THE_FLASH", "The Flash", "Gradually gain speed, Dmg scales with Speed", 8));
         // --- 10. PARKOUR ---
-        masterAugmentList.add(new Augment("PARKOUR", "Parkour", "Dash into wall to Dash again", 9));
+        masterAugmentList.add(new Augment("PARKOUR", "Parkour", "Dash to an object to Dash again", 9));
         // --- 11. SCAREDY CAT ---
         masterAugmentList.add(new Augment("SCAREDY_CAT", "Scaredy Cat", "Gain Speed near enemies", 10));
         // --- 12. SLOW BUT DANGEROUS ---
-        masterAugmentList.add(new Augment("SLOW_DANGEROUS", "Slow & Dangerous", "-30% Speed Gained Dmg based on loss", 11));
+        masterAugmentList.add(new Augment("SLOW_DANGEROUS", "Slow & Dangerous", "-30% Speed, gain Dmg based on speed loss", 11));
         // --- 13. GRAVE LOOTER ---
-        masterAugmentList.add(new Augment("GRAVE_LOOTER", "Grave Looter", "Enemies drop Boosts", 12));
+        masterAugmentList.add(new Augment("GRAVE_LOOTER", "Grave Looter", "Enemies drop bonus loot", 13));
         // --- 14. MASOCHIST ---
-        masterAugmentList.add(new Augment("MASOCHIST", "Masochist", "Taking damage can Heal you", 13));
+        masterAugmentList.add(new Augment("MASOCHIST", "Masochist", "Taking damage can Heal you", 14));
         // --- 15. UNDERDOG ---
-        masterAugmentList.add(new Augment("UNDERDOG", "Underdog", "Stats scale with nearby enemies", 14));
+        masterAugmentList.add(new Augment("UNDERDOG", "Underdog", "Stats scale with nearby enemies", 16));
         // --- 16. LAST STAND ---
-        masterAugmentList.add(new Augment("LAST_STAND", "Last Stand", "Gain Stats under 25% HP", 15));
+        masterAugmentList.add(new Augment("LAST_STAND", "Last Stand", "Gain Stats and lifesteal under 25% HP", 17));
         // --- 17. BOOSTED ANIMAL ---
-        masterAugmentList.add(new Augment("BOOSTED_ANIMAL", "Boosted Animal", "Boosts stronger some Permanent", 16));
+        masterAugmentList.add(new Augment("BOOSTED_ANIMAL", "Boosted Animal", "Boosts are stronger, some Permanent", 18));
         // --- 18. COMBO GOD ---
-        masterAugmentList.add(new Augment("COMBO_GOD", "Combo God", "Combo boosts all Stats", 17));
+        masterAugmentList.add(new Augment("COMBO_GOD", "Combo God", "Combo boosts all Stats", 19));
     }
 
     public void resetPool() {

@@ -19,7 +19,7 @@ public class Player {
     // Stats
     public float baseHP = 200f, currentHP = baseHP;
     public float armor = 10f;
-    public float baseSpeed = 60f, speed = baseSpeed;
+    public float baseSpeed = 50f, speed = baseSpeed;
     private float speedMultiplier = 1f, speedBoostTimer = 0f;
     private float baseAttackSpeed = 0.5f, attackSpeed = baseAttackSpeed, attackCooldownTimer = 0f;
     public float baseDamage = 60f, damage = baseDamage, damageMultiplier = 1f, damageBoostTimer = 0f;
@@ -27,7 +27,7 @@ public class Player {
     public float luck = 0.01f;
     public float critChance = luck, critMultiplier = 1.5f;
     public float baseEnergy = 100f, currentEnergy = 0f;
-    public float level = 4f, currentXp = 0f, neededXp = 15f, previousNeededXp = neededXp;
+    public float level = 1f, currentXp = 0f, neededXp = 15f, previousNeededXp = neededXp;
 
     // Collision
     public int collisionOffsetX = -4, collisionOffsetY = -16, collisionWidth = 8, collisionHeight = 4;
@@ -43,7 +43,7 @@ public class Player {
     private float attackTimer = 0f, attackDuration = 0.2f;
     public float attackDirX = 0, attackDirY = 0;
     private float attackAngle = 0f;
-    public float range = 28f;
+    public float range = 30f;
 
     // Animation
     private Texture spriteSheet, swordSheet;
@@ -106,7 +106,7 @@ public class Player {
         for (int i = 0; i < 2; i++) swordFrames[i] = new TextureRegion(swordSheet, i * 64, 0, 64, 64);
         currentSwordFrame = swordFrames[0];
 
-        dashSpeed = baseSpeed * 3;
+        dashSpeed = baseSpeed * 3.5f;
 
         displayHP = currentHP;
         displayEnergy = currentEnergy;
@@ -371,6 +371,17 @@ public class Player {
         gameWorld.healAnimations.add(
             new HealingAnimation(this, 2f, gameWorld.healingTexture)
         );
+    }
+
+    public void loseHP(float amount) {
+        currentHP = Math.max(0, currentHP - amount);
+        if (currentHP == 0){
+            die(gameWorld);
+        }
+    }
+
+    public void die(GameWorld gameWorld) {
+
     }
 
     public void renderSword(SpriteBatch batch) {

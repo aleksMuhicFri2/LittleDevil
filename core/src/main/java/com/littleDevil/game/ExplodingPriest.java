@@ -160,7 +160,7 @@ public class ExplodingPriest extends Enemy {
         explodeSound.play(0.15f);
 
         if (dist <= EXPLOSION_RADIUS) {
-            player.currentHP -= damage;
+            player.loseHP(damage);
             screen.triggerTimePause(0.15f, 0.35f);
             player.applyKnockBack(dx, dy, 100f);
         }

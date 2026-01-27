@@ -8,15 +8,7 @@ import com.badlogic.gdx.graphics.Color;
 
 public class Nun extends Enemy {
 
-    // Scaling stats
-    public float BASE_HP = 140f;
-    public float WAVE_HP_INCREMENT = 10f;
-
-    public float BASE_DAMAGE = 25f;
-    public float WAVE_DAMAGE_INCREMENT = 4f;
-
     private final float RANGE = 80f;
-
     private final float BASE_WINDUP = 0.3f;
     private final float BASE_REPOSITION_COOLDOWN = 0.6f;
     private final float BASE_THROW_COOLDOWN = 2.0f;
@@ -62,14 +54,17 @@ public class Nun extends Enemy {
 
         currentFrame = idleFrame;
 
-        moveSpeed = 40f;
+        // --- NEW STATS SYSTEM INTEGRATION ---
+        UnitStats.StatsResult stats = UnitStats.get(UnitStats.UnitType.NUN, world.wave, world.difficulty);
 
-        HP = BASE_HP + (world.wave - 1) * WAVE_HP_INCREMENT;
-        damage = BASE_DAMAGE + (world.wave - 1) * WAVE_DAMAGE_INCREMENT;
+        this.HP = stats.maxHp;
+        this.damage = stats.damage;
+        this.moveSpeed = stats.speed;
+        this.intelligence = stats.intelligence;
+        this.scoreValue = stats.score;
+        // ------------------------------------
 
-        intelligence = Math.min(1f + (world.wave - 1) * 0.15f, 3.0f);
-
-        guaranteedOrbsCounts = new float [] {2, 1, 0};
+        guaranteedOrbsCounts = new float [] {3, 1, 0};
         firstExtraChances = new float [] {0.55f, 0.20f, 0.03f};
         orbProbabilityDecays = new float [] {0.35f, 0.40f, 0.40f};
     }
@@ -165,22 +160,26 @@ public class Nun extends Enemy {
 
     private void throwBottle(GameWorld world, Player player) {
 
+        // Calculate player velocity
         float velX = (player.x - player.prevX) / Gdx.graphics.getDeltaTime();
         float velY = (player.y - player.prevY) / Gdx.graphics.getDeltaTime();
 
+        // If player is barely moving, throw directly at them
         float speedSquared = velX * velX + velY * velY;
-
-        if (speedSquared < 1f) {
+        if (speedSquared < 100f) { // Increased threshold slightly
             world.spawnBottleToPoint(x, y, player.x, player.y - player.height * 0.5f, damage);
             return;
         }
 
+        // Calculate flight time
         float distance = Vector2.dst(x, y, player.x, player.y);
         float flightSpeed = 150f;
         float travelTime = distance / flightSpeed;
 
-        float targetX = player.x + velX * travelTime * intelligence;
-        float targetY = player.y + velY * travelTime * intelligence - player.height * 0.5f;
+        float predictionScale = 0.35f;
+
+        float targetX = player.x + (velX * travelTime * predictionScale);
+        float targetY = player.y + (velY * travelTime * predictionScale) - player.height * 0.5f;
 
         world.spawnBottleToPoint(x, y, targetX, targetY, damage);
     }
@@ -247,6 +246,9 @@ public class Nun extends Enemy {
 
     private void die(GameWorld gameWorld, Player player) {
         isAlive = false;
+
+        gameWorld.score += this.scoreValue;
+
         currentFrame = flashFrame;
         gameWorld.spawnOrbs(this, player);
     }
