@@ -5,7 +5,6 @@ import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
 
 public class Boost {
     // CLASS USED TO DESCRIBE BOOSTS
@@ -54,10 +53,10 @@ public class Boost {
 
         switch (type) {
             case SPEED:
-                player.boostSpeed(2f, 1.5f);
+                player.boostSpeed(10f, 1.5f);
                 break;
             case DAMAGE:
-                player.boostDamage(2f, 1.5f);
+                player.boostDamage(10f, 1.5f);
                 break;
             case REGEN:
                 player.heal(player.baseHP / 4, gameWorld);

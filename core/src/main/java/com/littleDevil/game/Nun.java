@@ -9,9 +9,9 @@ import com.badlogic.gdx.graphics.Color;
 public class Nun extends Enemy {
 
     private final float RANGE = 80f;
-    private final float BASE_WINDUP = 0.3f;
-    private final float BASE_REPOSITION_COOLDOWN = 0.6f;
-    private final float BASE_THROW_COOLDOWN = 2.0f;
+    private final float BASE_WINDUP = 0.4f;
+    private final float BASE_REPOSITION_COOLDOWN = 0.7f;
+    private final float BASE_THROW_COOLDOWN = 2.5f;
 
     private float throwCooldown = 0f;
 
@@ -234,10 +234,14 @@ public class Nun extends Enemy {
         }
 
         int dmg = (int)(player.damage * damageMultiplier);
+        gameWorld.combo += 1;
+        gameWorld.timeSinceLastHit = 0f;
 
         gameWorld.spawnDamage(x, y + height / 1.5f, dmg, textColor, scale);
 
         HP -= dmg;
+
+        player.onDealDamage(dmg);
 
         if (HP <= 0 && isAlive) {
             die(gameWorld, player);

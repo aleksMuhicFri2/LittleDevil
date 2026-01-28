@@ -135,6 +135,8 @@ public class GameWorld {
     }
 
     public void initialize() {
+
+        basicTutorialDone = false;
         // Map
         mapTexture = new Texture("MapAssets/map.png");
 
@@ -148,8 +150,8 @@ public class GameWorld {
         // Enemies
         enemies = new ArrayList<>();
 
-        // Automatically start the countdown for Wave 1
-        waitingForNextWave = true;
+        // Wait for trigger from tutorial
+        waitingForNextWave = false;
         canStartNextWave = false;
 
         // Altars
@@ -480,6 +482,10 @@ public class GameWorld {
         damageTexts.add(new DamageText(x, y, String.valueOf(amount), 0.7f, damageFont, color, scale));
     }
 
+    public void spawnText(float x, float y, String message, Color color, float scale) {
+        damageTexts.add(new DamageText(x, y, message, 0.7f, damageFont, color, scale));
+    }
+
     public void dispose() {
         mapTexture.dispose();
         candleSheet.dispose();
@@ -607,15 +613,34 @@ public class GameWorld {
         float angleToPlayer = (float) Math.atan2(player.y - enemy.y, player.x - enemy.x);
         float backAngle = angleToPlayer + (float) Math.PI;
 
+        float luckFactor = player.luck * 0.2f;
+
+        if (MathUtils.random() < 0.005f + (luckFactor * 0.1f)) {
+            player.skillPoints++;
+            spawnText(enemy.x, enemy.y + 20, "SKILL POINT!", Color.GOLD, 1.2f);
+        }
+
+        // 3. Process Guaranteed Orbs
         for (int i = 0; i < enemy.guaranteedOrbsCounts.length; i++) {
             Orb.OrbType type = (i == 1) ? Orb.OrbType.RARE : (i == 2 ? Orb.OrbType.GOLD : Orb.OrbType.COMMON);
-            int guaranteed = (int) enemy.guaranteedOrbsCounts[i];
-            for (int j = 0; j < guaranteed; j++) {
+            int count = (int) enemy.guaranteedOrbsCounts[i];
+
+            // Luck Bonus: Chance for an extra XP orb if it's the XP type (index 0)
+            if (i == 0 && MathUtils.random() < luckFactor * 2) {
+                count++;
+                spawnText(enemy.x, enemy.y + 10, "BONUS XP", new Color(0.8f, 0.4f, 1f, 1f), 0.8f);
+            }
+
+            for (int j = 0; j < count; j++) {
                 spawnSingleOrb(enemy, backAngle, type, 65f, 20f, rand, player);
             }
         }
+
         for (int i = 0; i < enemy.firstExtraChances.length; i++) {
-            if (rand.nextFloat() < enemy.firstExtraChances[i]) {
+            float baseChance = enemy.firstExtraChances[i];
+            float luckyChance = baseChance + ((1f - baseChance) * luckFactor);
+
+            if (rand.nextFloat() < luckyChance) {
                 Orb.OrbType type = (i == 1) ? Orb.OrbType.RARE : (i == 2 ? Orb.OrbType.GOLD : Orb.OrbType.COMMON);
                 spawnSingleOrb(enemy, backAngle, type, 100f, 30f, rand, player);
             }

@@ -25,9 +25,9 @@ public class TutorialManager {
         MOVEMENT("Use WASD to Move"),
         DASH("Press SPACE to Dash"),
         ATTACK("Left Click to Attack"),
-        FIRST_WAVE("Survive the first wave!"),
-        SKILL_POINT("Level Up! Skill Point earned.\nGo to the center Altar."),
-        ALTAR_EXPLAIN("Safe Zone Active.\nStay here to open Upgrades."),
+        FIRST_WAVE("Survive the first wave!\nGood luck!"),
+        SKILL_POINT("Level Up! \nSkill Point earned.\nGo to the center Altar."),
+        ALTAR_EXPLAIN("Here you can upgrade \nyour character"),
         COMPLETED("");
 
         final String text;
@@ -121,7 +121,10 @@ public class TutorialManager {
             case DASH:
                 if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
                     hasDashed = true;
+
                     advanceStep(TutorialStep.FIRST_WAVE);
+                    gameWorld.canStartNextWave = true;
+                    gameWorld.startWave();
                 }
                 break;
             case FIRST_WAVE:

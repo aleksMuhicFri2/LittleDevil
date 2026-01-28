@@ -64,14 +64,18 @@ public class UIManager {
 
     private TutorialManager tutorialManager;
 
-    private final float CARD_SCALE = 4.0f;
+    private final float CARD_SCALE = 5.5f;
     private final float CARD_W = 48f * CARD_SCALE;
     private final float CARD_H = 64f * CARD_SCALE;
-    private final float CARD_SPACING = 220f;
+    private final float CARD_SPACING = 300f;
 
     private final float SLOT_SIZE = 40f;
     private final float SLOT_VISIBLE_Y = 15f;
     private final float SLOT_SPACING = 29f;
+
+    private float[] augmentCardScales = {1f, 1f, 1f};
+    private final float HOVER_SCALE = 1.2f; // How big it grows (1.2 = 20% bigger)
+    private final float SCALE_SPEED = 15f;
 
 
     public UIManager(
@@ -213,70 +217,147 @@ public class UIManager {
     public void closeAugmentPage() { augmentPageOpen = false; }
 
 
-    // --- AUGMENT PAGE RENDERER ---
     private void renderAugmentPage() {
+        // 1. Draw Background Overlay
         batch.setColor(1f, 1f, 1f, 1f);
         batch.draw(darkOverlay, camera.position.x - viewport.getWorldWidth()/2, camera.position.y - viewport.getWorldHeight()/2, viewport.getWorldWidth(), viewport.getWorldHeight());
 
         float centerX = viewport.getWorldWidth() / 2f;
         float centerY = viewport.getWorldHeight() / 2f;
 
-        float x1 = centerX - CARD_SPACING;
-        float x2 = centerX;
-        float x3 = centerX + CARD_SPACING;
+        // --- NEW: DRAW HEADER TEXT ---
+        tutorialFont.setColor(Color.WHITE);
+        tutorialFont.getData().setScale(1.5f); // Big scale
+        layout.setText(tutorialFont, "CHOOSE YOUR AUGMENT");
 
+        float textX = centerX - layout.width / 2f;
+        // Position it well above the cards (Card Height is roughly 350px)
+        float textY = centerY + (CARD_H * 0.65f);
+
+        tutorialFont.draw(batch, layout, textX, textY);
+
+        // Reset font for next draws
+        tutorialFont.getData().setScale(1f);
+        // -----------------------------
+
+        // 2. Get mouse position for hover checks
+        Vector3 mouse = camera.unproject(new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0));
+
+        float[] positionsX = { centerX - CARD_SPACING, centerX, centerX + CARD_SPACING };
         List<Augment> options = world.augmentManager.currentOptions;
 
-        if (options.size() >= 1) drawAugmentCard(options.get(0), x1, centerY);
-        if (options.size() >= 2) drawAugmentCard(options.get(1), x2, centerY);
-        if (options.size() >= 3) drawAugmentCard(options.get(2), x3, centerY);
+        // 3. Draw Cards
+        // Added index arguments (0, 1, 2)
+        if (options.size() >= 1) {
+            drawAugmentCardWithHover(options.get(0), positionsX[0], centerY, 0, mouse);
+        }
+        if (options.size() >= 2) {
+            drawAugmentCardWithHover(options.get(1), positionsX[1], centerY, 1, mouse);
+        }
+        if (options.size() >= 3) {
+            drawAugmentCardWithHover(options.get(2), positionsX[2], centerY, 2, mouse);
+        }
     }
 
-    private void drawAugmentCard(Augment aug, float centerX, float centerY) {
-        float x = centerX - CARD_W / 2f;
-        float y = centerY - CARD_H / 2f;
+    // Helper to keep the main render method clean
+    private void drawAugmentCardWithHover(Augment aug, float x, float y, int index, Vector3 mouse) {
+        boolean isHovered = mouse.x >= x - CARD_W/2f && mouse.x <= x + CARD_W/2f &&
+            mouse.y >= y - CARD_H/2f && mouse.y <= y + CARD_H/2f;
 
-        // 1. Draw Card Background
+        // Smoothly animate scale
+        float targetScale = isHovered ? HOVER_SCALE : 1.0f;
+        augmentCardScales[index] = MathUtils.lerp(augmentCardScales[index], targetScale, Gdx.graphics.getDeltaTime() * SCALE_SPEED);
+
+        drawAugmentCard(aug, x, y, index);
+    }
+
+    private void drawAugmentCard(Augment aug, float centerX, float centerY, int cardIndex) {
+
+        // 1. Calculate Mouse State & Animation
+        float dt = Gdx.graphics.getDeltaTime();
+
+        // Unproject mouse coordinates
+        float mx = Gdx.input.getX();
+        float my = Gdx.input.getY();
+        viewport.unproject(tmp.set(mx, my, 0));
+
+        // Get current animated scale for this slot
+        float currentScale = augmentCardScales[cardIndex];
+
+        // Calculate dimensions based on CURRENT scale
+        float drawW = CARD_W * currentScale;
+        float drawH = CARD_H * currentScale;
+
+        // Center the card based on its grown size
+        float x = centerX - drawW / 2f;
+        float y = centerY - drawH / 2f;
+
+        // Check Hover (Collision)
+        boolean isHovered = (tmp.x >= x && tmp.x <= x + drawW && tmp.y >= y && tmp.y <= y + drawH);
+
+        // Smoothly interpolate scale based on hover state
+        float targetScale = isHovered ? HOVER_SCALE : 1.0f;
+        augmentCardScales[cardIndex] = MathUtils.lerp(augmentCardScales[cardIndex], targetScale, dt * SCALE_SPEED);
+
+        // Re-assign scale for drawing after the update
+        currentScale = augmentCardScales[cardIndex];
+
+        // --- DRAWING ---
+
+        // 2. Draw Card Background
         TextureRegion cardRegion = world.augmentManager.getAugmentCard(aug.iconIndex);
         if (cardRegion != null) {
-            batch.draw(cardRegion, x, y, CARD_W, CARD_H);
-        } else {
-            batch.setColor(0,0,0,1);
-            batch.draw(slotBorder, x, y, CARD_W, CARD_H);
-            batch.setColor(1,1,1,1);
+            batch.setColor(1, 1, 1, 1);
+            batch.draw(cardRegion, x, y, drawW, drawH);
         }
 
+        // 3. Draw Title
+        // Scale font size by currentScale so text grows with the card
+        float baseTitleScale = 0.7f;
+        tutorialFont.getData().setScale(baseTitleScale * currentScale);
+        tutorialFont.setColor(Color.GOLD);
 
-        // --- DESCRIPTION (White, Smaller, Centered) ---
+        layout.setText(tutorialFont, aug.name);
+
+        float titleX = centerX - layout.width / 2f; // Easiest to center using centerX directly
+        // Adjust offset relative to card height
+        float titleY = y + (drawH * 0.37f);
+
+        tutorialFont.draw(batch, layout, titleX, titleY);
+
+        // 4. Draw Description
+        float baseDescScale = 0.55f;
+        tutorialFont.getData().setScale(baseDescScale * currentScale);
         tutorialFont.setColor(Color.WHITE);
-        tutorialFont.getData().setScale(0.5f); // Kept small/readable
 
-        // Wrap width
-        float descWidth = CARD_W - 100f;
-        layout.setText(tutorialFont, aug.description, Color.WHITE, descWidth, Align.center, true);
+        float leftSidePadding = 65f * currentScale;
+        float rightSidePadding = 65f * currentScale;
+        float maxTextWidth = drawW - (leftSidePadding + rightSidePadding);
 
-        // Center Horizontally
-        float descX = x + (CARD_W - layout.width) / 2f - 5f;
-        // Position Y: Lower down in the description box
-        float descY = y + CARD_H * 0.35f;
+        layout.setText(tutorialFont, aug.description, Color.WHITE, maxTextWidth, Align.left, true);
+
+        float descX = x + leftSidePadding;
+        float descY = y + (drawH * 0.30f);
 
         tutorialFont.draw(batch, layout, descX, descY);
 
-
-        // Reset font state
+        // Reset Font State
         tutorialFont.getData().setScale(1f);
         tutorialFont.setColor(Color.WHITE);
 
+        // 5. Input Logic
+        // We already checked hover above, so we just check for click
+        if (isHovered && Gdx.input.justTouched()) {
+            world.augmentManager.selectAugment(aug);
+            world.augmentSelectionPending = false;
 
-        // 3. Input Logic
-        if (Gdx.input.justTouched()) {
-            viewport.unproject(tmp.set(Gdx.input.getX(), Gdx.input.getY(), 0));
-            if (tmp.x >= x && tmp.x <= x + CARD_W && tmp.y >= y && tmp.y <= y + CARD_H) {
-                world.augmentManager.selectAugment(aug);
-                world.augmentSelectionPending = false;
-                closeAugmentPage();
-                openUpgradePage();
-            }
+            // Reset scales for next time we open the menu
+            augmentCardScales[0] = 1f;
+            augmentCardScales[1] = 1f;
+            augmentCardScales[2] = 1f;
+
+            closeAugmentPage();
+            openUpgradePage();
         }
     }
 

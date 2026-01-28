@@ -2,6 +2,7 @@ package com.littleDevil.game;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.Preferences; // Import this
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Color;
@@ -61,6 +62,13 @@ public class StoryScreen implements Screen {
     public void show() {
         batch = new SpriteBatch();
 
+        // --- NEW: SAVE THAT STORY HAS BEEN SEEN ---
+        // We use the same preference file name "MyGameInfo" used in StartScreen
+        Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
+        prefs.putBoolean("storySeen", true);
+        prefs.flush(); // Forces the save to disk immediately
+        // ------------------------------------------
+
         // Camera & viewport setup
         camera = new OrthographicCamera();
         viewport = new FitViewport(WORLD_WIDTH, WORLD_HEIGHT, camera);
@@ -107,7 +115,7 @@ public class StoryScreen implements Screen {
                 storyMusic.setVolume(Math.max(0f, storyMusic.getVolume() - fadeSpeed * delta));
             } else {
                 storyMusic.stop();
-                game.setScreen(new GameScreen(game)); // replace with your next screen
+                game.setScreen(new GameScreen(game)); // Transition to game
                 batch.end();
                 return;
             }

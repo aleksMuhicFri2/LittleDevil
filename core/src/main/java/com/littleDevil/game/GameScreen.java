@@ -12,7 +12,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.*;
 
 public class GameScreen implements Screen {
-    private final Main game;
+    public final Main game;
 
     public UIManager uiManager;
 

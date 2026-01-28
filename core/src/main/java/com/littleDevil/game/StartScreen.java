@@ -84,19 +84,28 @@ public class StartScreen implements Screen {
     private boolean playPressed = false;
     private float fadeAlpha = 0f;
 
+    // Highscore
+    private int highscoreVal = 0;
+    private float highscoreTimer = 0f;
+    private final Color redColor = new Color(1f, 0.24f, 0.24f, 1f); // Red
+    private final Color whiteColor = new Color(1f, 1f, 1f, 1f);   // White
+    private final Color currentHighscoreColor = new Color();
+
     public StartScreen(Main game) {
         this.game = game;
     }
 
     @Override
     public void show() {
+        playPressed = false;
+        fadeAlpha = 0f;
+
         batch = new SpriteBatch();
 
         Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
         currentDifficulty = prefs.getInteger("difficulty", 0);
 
-        // Camera and viewport
-        camera = new OrthographicCamera();
+        highscoreVal = prefs.getInteger("highscore", 0);
 
         // Camera and viewport
         camera = new OrthographicCamera();
@@ -157,6 +166,11 @@ public class StartScreen implements Screen {
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+                // --- CHANGE 2: INPUT LOCKING ---
+                // If the transition has started, ignore ALL clicks immediately.
+                if (playPressed) return false;
+                // -------------------------------
+
                 // Convert screen coordinates to world coordinates
                 Vector3 touchPos = new Vector3(screenX, screenY, 0);
                 camera.unproject(touchPos);
@@ -232,15 +246,14 @@ public class StartScreen implements Screen {
         candleLeft.draw(batch);
         candleRight.draw(batch);
 
-        // --- NEW: "Difficulty:" Label ---
+        // Difficulty Label
         String labelText = "Difficulty:";
         layout.setText(font, labelText);
         float labelX = (screenW - layout.width) / 2f;
-        // Position it slightly above the difficulty value (which is at 0.45f)
         float labelY = screenH * 0.51f;
         font.draw(batch, layout, labelX, labelY);
 
-        // Difficulty Value Text (Easy, Hard, etc.)
+        // Difficulty Value
         String difficulty = difficulties[currentDifficulty];
         layout.setText(font, difficulty);
         float diffX = (screenW - layout.width) / 2f;
@@ -277,6 +290,36 @@ public class StartScreen implements Screen {
         font.getData().setScale(1f);
         font.setColor(Color.WHITE);
 
+
+        // --- NEW: Highscore Logic ---
+        highscoreTimer += delta * 4f; // Speed of the pulse
+
+        // 1. Calculate Pulse Scale (bounces between 0.95 and 1.05)
+        float pulseScale = 1f + MathUtils.sin(highscoreTimer) * 0.05f;
+
+        // 2. Calculate Pulse Color (interpolates between Gold and White)
+        float colorSine = (MathUtils.sin(highscoreTimer) + 1f) / 2f; // map -1..1 to 0..1
+        currentHighscoreColor.set(redColor).lerp(whiteColor, colorSine);
+
+        // 3. Setup Text
+        String highscoreText = "Highscore: " + highscoreVal;
+        font.getData().setScale(pulseScale * 0.8f); // Base size 0.8 * pulse
+        font.setColor(currentHighscoreColor);
+        layout.setText(font, highscoreText);
+
+        // 4. Calculate Position (Bottom Right)
+        float padding = 200f;
+        float scoreX = screenW - layout.width - padding;
+        float scoreY = padding + layout.height;
+
+        // 5. Draw
+        font.draw(batch, layout, scoreX, scoreY);
+
+        // 6. Reset Font (Important!)
+        font.setColor(Color.WHITE);
+        font.getData().setScale(1f);
+        // -----------------------------
+
         // Fade after play pressed
         if (playPressed) {
             if ((candleLeft.isSmoking() || candleRight.isSmoking() ||
@@ -289,7 +332,14 @@ public class StartScreen implements Screen {
                 batch.setColor(Color.WHITE);
 
                 if (fadeAlpha >= 1f) {
-                    game.setScreen(new StoryScreen(game, StoryData.STORY_PARTS));
+                    Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
+                    boolean storySeen = prefs.getBoolean("storySeen", false);
+
+                    if (storySeen) {
+                        game.setScreen(new GameScreen(game));
+                    } else {
+                        game.setScreen(new StoryScreen(game, StoryData.STORY_PARTS));
+                    }
                 }
             }
         }
@@ -320,7 +370,9 @@ public class StartScreen implements Screen {
 
     @Override public void pause() {}
     @Override public void resume() {}
-    @Override public void hide() {}
+    @Override public void hide() {
+        Gdx.input.setInputProcessor(null);
+    }
 
     @Override
     public void dispose() {

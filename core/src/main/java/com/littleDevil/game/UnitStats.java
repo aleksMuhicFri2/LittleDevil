@@ -7,16 +7,16 @@ public class UnitStats {
 
     private static final float[] DIFF_HP_MULT    = { 0.8f,  1.0f,  1.5f,  2.2f };
     private static final float[] DIFF_DMG_MULT   = { 0.8f,  1.0f,  1.5f,  2f };
-    private static final float[] DIFF_SPD_MULT   = { 0.85f, 1.0f,  1.15f, 1.25f };
+    private static final float[] DIFF_SPD_MULT   = { 0.9f, 1.0f,  1.1f, 1.25f };
     private static final float[] DIFF_SCORE_MULT = { 0.7f,  1.0f,  1.5f,  2.5f };
 
     // --- CONFIGURATION ---
     public enum UnitType {
         // Format:     BaseHP,      HpPerWave,        BaseDmg,      DmgPerWave,         Speed,     Int,   BASE_SCORE
 
-        TEMPLAR       (150f,    15f,        20f,     2f,         25f,   0.5f,  100),
-        NUN           (100f,    10f,        25f,     3f,         40f,   0.15f, 200),
-        PRIEST        (120f,    14f,        40f,     3f,         70f,   0.5f,  500);
+        TEMPLAR       (150f,    15f,        20f,     2f,         30f,   0.3f,  100),
+        NUN           (100f,    10f,        20f,     3f,         45f,   0.15f, 200),
+        PRIEST        (120f,    14f,        40f,     3f,         70f,   0.2f,  500);
 
         final float baseHp;
         final float hpPerWave;

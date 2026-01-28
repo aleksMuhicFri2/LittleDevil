@@ -217,8 +217,6 @@ public class Templar extends Enemy {
                     hitThisAttack = true;
                     boolean applyKnockbackFlag = state != TemplarState.CHANNELING && state != TemplarState.BASHING;
                     templarHit(dx, dy, applyKnockbackFlag, 0.1f, 0.15f, player, gameScreen, gameWorld);
-                    gameWorld.combo += 1;
-                    gameWorld.timeSinceLastHit = 0f;
                 }
             }
         }
@@ -256,9 +254,13 @@ public class Templar extends Enemy {
             scale = 1.3f;
         }
 
+        gameWorld.combo += 1;
+        gameWorld.timeSinceLastHit = 0f;
+
         int damage = (int)(player.damage * damageMultiplier);
         gameWorld.spawnDamage(x, y + height / 1.5f, damage, textColor, scale);
         HP -= damage;
+        player.onDealDamage(damage);
         if (HP <= 0 && isAlive) die(gameWorld, player);
     }
 

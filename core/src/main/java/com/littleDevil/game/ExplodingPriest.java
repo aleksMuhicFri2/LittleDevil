@@ -57,12 +57,13 @@ public class ExplodingPriest extends Enemy {
 
         currentPriestFrame = frame1;
 
-        moveSpeed = 50f;
+        UnitStats.StatsResult stats = UnitStats.get(UnitStats.UnitType.PRIEST, gameWorld.wave, gameWorld.difficulty);
 
-        HP = BASE_HP + (gameWorld.wave - 1) * 14f;
-        damage = BASE_DAMAGE + (gameWorld.wave - 1) * 3f;
-
-        intelligence = 1.6f; // faster blinking
+        this.HP = stats.maxHp;
+        this.damage = stats.damage;
+        this.moveSpeed = stats.speed;
+        this.intelligence = stats.intelligence;
+        this.scoreValue = stats.score;
 
         guaranteedOrbsCounts = new float [] {2, 1, 1};
         firstExtraChances = new float [] {0.70f, 0.40f, 0.15f};
@@ -214,6 +215,8 @@ public class ExplodingPriest extends Enemy {
         HP -= dmg;
         gameWorld.combo += 1;
         gameWorld.timeSinceLastHit = 0f;
+
+        player.onDealDamage(dmg);
 
         if (HP <= 0) {
             if (state == PriestState.CHARGING) diedWhileCharging = true;
