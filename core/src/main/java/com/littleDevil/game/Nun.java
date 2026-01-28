@@ -3,6 +3,7 @@ package com.littleDevil.game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.graphics.Color;
 
@@ -210,8 +211,6 @@ public class Nun extends Enemy {
         hitThisAttack = true;
 
         nunHit(dx, dy, player, gameScreen, gameWorld);
-        gameWorld.combo += 1;
-        gameWorld.timeSinceLastHit = 0f;
     }
 
     private void nunHit(float dx, float dy, Player player, GameScreen gameScreen, GameWorld gameWorld) {
@@ -233,15 +232,34 @@ public class Nun extends Enemy {
             scale = 1.3f;
         }
 
-        int dmg = (int)(player.damage * damageMultiplier);
+        if (player.hasLastStand) {
+            damageMultiplier *= MathUtils.clamp(1f + (1f - (player.currentHP / player.baseHP)) / 0.75f, 1f, player.lastStandMaxBoost);
+        }
+
+        if (player.hasTheFlash) {
+            damageMultiplier *= player.currentFlashDamageBonus;
+        }
+        if (player.hasVampiric) {
+            damageMultiplier *= MathUtils.clamp(0.5f + (player.getNearestLightDistance() / 150f), 0.4f, 1.7f);
+        }
+        if (player.hasComboGod && gameWorld.combo > 0) {
+            damageMultiplier *= (float) Math.pow(1f + player.comboGodBoostPerCombo, gameWorld.combo);
+        }
+
+        int luckyThreesDamage = 0;
+        if (player.hasLuckyThrees) {
+            luckyThreesDamage = player.attackCount % 3 == 0 ? player.luckyThreesDmgBonus : 0;
+        }
+
+        int damage = (int)(player.damage * damageMultiplier * player.bloodThirstyBoost + luckyThreesDamage);
+
         gameWorld.combo += 1;
         gameWorld.timeSinceLastHit = 0f;
+        gameWorld.spawnDamage(x, y + height / 1.5f, damage, textColor, scale);
 
-        gameWorld.spawnDamage(x, y + height / 1.5f, dmg, textColor, scale);
+        HP -= damage;
 
-        HP -= dmg;
-
-        player.onDealDamage(dmg);
+        player.onDealDamage(damage);
 
         if (HP <= 0 && isAlive) {
             die(gameWorld, player);
@@ -255,6 +273,12 @@ public class Nun extends Enemy {
 
         currentFrame = flashFrame;
         gameWorld.spawnOrbs(this, player);
+        player.bloodthirstyTimer = player.bloodthirstyDuration;
+        player.bloodThirstyBoost = 1.5f;
+        if (player.hasSlowGrowth) {
+            player.baseHP += player.slowGrowthBonus;
+            player.currentHP += player.slowGrowthBonus;
+        }
     }
 
     private void updateFacing(Player player) {

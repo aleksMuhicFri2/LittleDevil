@@ -59,7 +59,7 @@ public class Boost {
                 player.boostDamage(10f, 1.5f);
                 break;
             case REGEN:
-                player.heal(player.baseHP / 4, gameWorld);
+                player.boostHP(player.baseHP / 4);
                 break;
             case SUPER:
                 player.currentEnergy = Math.min(player.baseEnergy, player.currentEnergy + player.baseEnergy / 4);

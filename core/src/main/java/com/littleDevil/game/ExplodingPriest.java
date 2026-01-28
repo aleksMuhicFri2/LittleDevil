@@ -5,6 +5,7 @@ import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.MathUtils;
 
 public class ExplodingPriest extends Enemy {
 
@@ -197,30 +198,55 @@ public class ExplodingPriest extends Enemy {
         hitThisAttack = true;
         hitFlashTime = hitFlashDuration;
 
-        float dmgMult = player.damageMultiplier;
+        float damageMultiplier = player.damageMultiplier;
         boolean crit = Math.random() <= player.critChance;
 
         Color color = new Color(1f, 0.2f, 0.2f, 1f);
         float scale = 1f;
 
         if (crit) {
-            dmgMult *= player.critMultiplier;
+            damageMultiplier *= player.critMultiplier;
             color.set(1f, 0.4f, 0.2f, 1f);
             scale = 1.25f;
         }
 
-        int dmg = (int)(player.damage * dmgMult);
-        gameWorld.spawnDamage(x, y + height / 1.5f, dmg, color, scale);
+        if (player.hasLastStand) {
+            damageMultiplier *= MathUtils.clamp(1f + (1f - (player.currentHP / player.baseHP)) / 0.75f, 1f, player.lastStandMaxBoost);
+        }
+        if (player.hasTheFlash) {
+            damageMultiplier *= player.currentFlashDamageBonus;
+        }
+        if (player.hasVampiric) {
+            damageMultiplier *= MathUtils.clamp(0.5f + (player.getNearestLightDistance() / 150f), 0.4f, 1.7f);
+        }
+        if (player.hasComboGod && gameWorld.combo > 0) {
+            damageMultiplier *= (float) Math.pow(1f + player.comboGodBoostPerCombo, gameWorld.combo);
+        }
 
-        HP -= dmg;
+        int luckyThreesDamage = 0;
+        if (player.hasLuckyThrees) {
+            luckyThreesDamage = player.attackCount % 3 == 0 ? player.luckyThreesDmgBonus : 0;
+        }
+
+        int damage = (int)(player.damage * damageMultiplier * player.bloodThirstyBoost + luckyThreesDamage);
+
+        gameWorld.spawnDamage(x, y + height / 1.5f, damage, color, scale);
         gameWorld.combo += 1;
         gameWorld.timeSinceLastHit = 0f;
 
-        player.onDealDamage(dmg);
+        HP -= damage;
+
+        player.onDealDamage(damage);
 
         if (HP <= 0) {
             if (state == PriestState.CHARGING) diedWhileCharging = true;
             isAlive = false;
+            player.bloodthirstyTimer = player.bloodthirstyDuration;
+            player.bloodThirstyBoost = 1.5f;
+            if (player.hasSlowGrowth) {
+                player.baseHP += player.slowGrowthBonus;
+                player.currentHP += player.slowGrowthBonus;
+            }
             gameWorld.removeEnemy(this);
             gameWorld.spawnOrbs(this, player);
         }

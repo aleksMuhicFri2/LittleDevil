@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 
 public class Templar extends Enemy {
@@ -254,10 +255,30 @@ public class Templar extends Enemy {
             scale = 1.3f;
         }
 
+        if (player.hasLastStand) {
+            damageMultiplier *= MathUtils.clamp(1f + (1f - (player.currentHP / player.baseHP)) / 0.75f, 1f, player.lastStandMaxBoost);
+        }
+
+        if (player.hasTheFlash) {
+            damageMultiplier *= player.currentFlashDamageBonus;
+        }
+        if (player.hasVampiric) {
+            damageMultiplier *= MathUtils.clamp(0.5f + (player.getNearestLightDistance() / 150f), 0.4f, 1.7f);
+        }
+        if (player.hasComboGod && gameWorld.combo > 0) {
+            damageMultiplier *= (float) Math.pow(1f + player.comboGodBoostPerCombo, gameWorld.combo);
+        }
+
+        int luckyThreesDamage = 0;
+        if (player.hasLuckyThrees) {
+            luckyThreesDamage = player.attackCount % 3 == 0 ? player.luckyThreesDmgBonus : 0;
+        }
+
+        int damage = (int)(player.damage * damageMultiplier * player.bloodThirstyBoost + luckyThreesDamage);
+
         gameWorld.combo += 1;
         gameWorld.timeSinceLastHit = 0f;
 
-        int damage = (int)(player.damage * damageMultiplier);
         gameWorld.spawnDamage(x, y + height / 1.5f, damage, textColor, scale);
         HP -= damage;
         player.onDealDamage(damage);
@@ -380,5 +401,12 @@ public class Templar extends Enemy {
         helmetY = y;
         helmetVelocity = 10f;
         gameWorld.spawnOrbs(this, player);
+
+        player.bloodthirstyTimer = player.bloodthirstyDuration;
+        player.bloodThirstyBoost = 1.5f;
+        if (player.hasSlowGrowth) {
+            player.baseHP += player.slowGrowthBonus;
+            player.currentHP += player.slowGrowthBonus;
+        }
     }
 }

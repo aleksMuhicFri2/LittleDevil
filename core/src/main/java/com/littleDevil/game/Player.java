@@ -94,6 +94,68 @@ public class Player {
 
     public enum StatType { ATTACK, AGILITY, DEFENSE, LUCK, SUPER }
 
+    // --- AUGMENT FLAGS ---
+    // These match the flags set in AugmentManager
+    public boolean hasVampiric = false;
+    public boolean hasBloodthirsty = false;
+    public boolean hasLuckyThrees = false;
+    public boolean hasVeteran = false;
+    public boolean hasSlowGrowth = false;
+    public boolean hasTheFlash = false;
+    public boolean hasParkour = false;
+    public boolean hasScaredyCat = false;
+    public boolean hasSlowDangerous = false;
+    public boolean hasGraveLooter = false;
+    public boolean hasMasochist = false;
+    public boolean hasLastStand = false;
+    public boolean hasBoostedAnimal = false;
+    public boolean hasComboGod = false;
+
+    public int attackCount = 0; // For Lucky Threes
+
+    public float bloodthirstyTimer = 0f;
+    public float bloodthirstyDuration = 5f;
+    public float bloodThirstyBoost = 1f;
+
+    public int luckyThreesDmgBonus = (int)(baseDamage * 0.3f);
+    public int luckyThreesHeal = (int)(baseDamage * 0.15f);
+
+    public int veteranBoost = 5;
+    public int veteranStacks = 0;
+    public float veteranTimer = 0f;
+    public final int MAX_VETERAN_STACKS = 10;
+    public final float VETERAN_DURATION = 3.0f;
+
+    public int slowGrowthBonus = 4;
+
+    public float flashTimer = 0f;
+    public float maxFlashTime = 8f; // Changed to 8 seconds as requested
+    public float currentFlashDamageBonus = 1f;
+
+    public int nearbyEnemies = 0;
+    public float nearbyDistance = 60f;
+    public float scaredyCatBoostPerEnemy = 20f;
+
+    public float lastStandMaxBoost = 2f;
+    public float lastStandMaxLifesteal = 0.2f;
+
+    public float boostedAnimalBoostPermanent = 0.2f;
+    public float boostedAnimalBoostLength = 15f;
+
+    public float comboGodBoostPerCombo = 0.07f;
+
+    private final float[][] LIGHT_POSITIONS = {
+        {122f, 204f}, // LightCenterLeft
+        {296f, 316f}, // LightCenterTop
+        {456f, 204f}, // LightCenterRight
+        {296f, 80f},  // LightCenterBot
+        {20f, 352f},  // LampTopLeft
+        {560f, 352f}, // LampTopRight
+        {560f, 32f},  // LampBotRight
+        {20f, 32f}    // LampBotLeft
+    };
+
+
     public Player(float startX, float startY, String spriteSheetPath, GameWorld gameWorld) {
         this.gameWorld = gameWorld;
         this.x = startX;
@@ -120,6 +182,12 @@ public class Player {
 
     public void update(float delta, GameWorld gameWorld) {
         updateTimers(delta);
+        updateNearbyEnemies(gameWorld);
+
+        float comboMultiplier = 1f;
+        if (hasComboGod && gameWorld.combo > 0) {
+            comboMultiplier = (float) Math.pow(1f + comboGodBoostPerCombo, gameWorld.combo);
+        }
 
         // Save position for collision resolution
         prevX = x;
@@ -144,11 +212,36 @@ public class Player {
             else if (moveX < 0) facingRight = false;
         }
 
+        // --- THE FLASH LOGIC ---
+        float flashSpeedMult = 1f;
+
+        if (hasTheFlash) {
+            boolean isMoving = (moveX != 0 || moveY != 0);
+
+            if (isMoving && !isAttacking && !isDashing) {
+                // Ramp up timer
+                flashTimer += delta;
+                if (flashTimer > maxFlashTime) flashTimer = maxFlashTime;
+            } else if (!isAttacking) {
+                // Reset if stopped (but don't reset here if attacking, handle that in performAttack)
+                flashTimer = 0f;
+            }
+
+            // Calculate Speed Multiplier (Linear: 1x at 0s, 3x at 8s)
+            // Formula: 1 + (Progress * 2)
+            float progress = flashTimer / maxFlashTime;
+            flashSpeedMult = 1f + (progress * 2f);
+        }
+
         // 2. Handle Actions (Dash / Attack)
         handleActions(moveX, moveY);
 
         // 3. Apply Physics & Position
-        applyMovement(delta, moveX, moveY, gameWorld);
+        applyMovement(delta, moveX, moveY, gameWorld, flashSpeedMult);
+
+        if (isDashing) {
+            checkDashCollisions(gameWorld);
+        }
 
         // 4. Resolve Environment (Collision/Knockback)
         resolveCollisions(gameWorld);
@@ -177,6 +270,19 @@ public class Player {
             lifestealBoostTimer -= delta;
             if (lifestealBoostTimer <= 0) lifestealMultiplier = 1f;
         }
+        if (bloodthirstyTimer > 0) {
+            bloodthirstyTimer -= delta;
+            if (bloodthirstyTimer <= 0) bloodThirstyBoost = 1f;
+        }
+
+        if (veteranTimer > 0) {
+            veteranTimer -= delta;
+            if (veteranTimer <= 0) {
+                float armorToRemove = veteranStacks * veteranBoost;
+                armor -= armorToRemove;
+                veteranStacks = 0;
+            }
+        }
     }
 
     private void handleActions(float moveX, float moveY) {
@@ -201,7 +307,7 @@ public class Player {
             && attackCooldownTimer <= 0;
     }
 
-    private void applyMovement(float delta, float moveX, float moveY, GameWorld gameWorld) {
+    private void applyMovement(float delta, float moveX, float moveY, GameWorld gameWorld, float flashMult) {
         // Priority 1: Dashing
         if (isDashing) {
             dashTime -= delta;
@@ -225,8 +331,19 @@ public class Player {
         }
 
         // Priority 3: Normal Walking
-        float currentSpeed = baseSpeed * speedMultiplier;
-        if (isOnStairs(gameWorld)) currentSpeed *= (2f / 3f); // Slow down on stairs
+        // Combine base multipliers with Flash multiplier
+        float currentSpeed = baseSpeed * speedMultiplier * flashMult;
+
+        if (hasScaredyCat) {
+            currentSpeed += (nearbyEnemies * scaredyCatBoostPerEnemy);
+        }
+
+        if (hasComboGod) {
+            float comboMult = (float) Math.pow(1f + comboGodBoostPerCombo, gameWorld.combo);
+            currentSpeed *= comboMult;
+        }
+
+        if (isOnStairs(gameWorld)) currentSpeed *= (2f / 3f);
 
         x += moveX * currentSpeed * delta;
         y += moveY * currentSpeed * delta;
@@ -258,7 +375,6 @@ public class Player {
         isDashing = true;
         dashTime = dashDuration;
 
-        // Ensure we dash in the moving direction
         if (moveX == 0 && moveY == 0) {
             dashDirX = facingRight ? 1 : -1;
             dashDirY = 0;
@@ -268,10 +384,45 @@ public class Player {
         }
     }
 
+    private void checkDashCollisions(GameWorld gameWorld) {
+        boolean shouldReset = false;
+        if (isBlocked(x, y, gameWorld)) {
+            // 1. Stop the dash physics
+            isDashing = false;
+            dashTime = 0f;
+
+            // 2. Mark for reset
+            shouldReset = true;
+            dashTimer = dashCooldown;
+
+            gameWorld.spawnText(x, y + height - 10f, "BONK!", Color.WHITE, 0.5f);
+        }
+
+        if (hasParkour && shouldReset) {
+            if (dashTimer > 0) {
+                gameWorld.spawnText(x, y + height - 5f, "RESET!", Color.CYAN, 0.9f);
+            }
+            dashTimer = 0f;
+        }
+    }
+
     private void performAttack() {
+        attackCount ++;
         isAttacking = true;
         attackTimer = attackDuration;
         attackCooldownTimer = baseAttackSpeed; // Use the stored attack speed var
+
+        // --- THE FLASH LOGIC ---
+        if (hasTheFlash) {
+            float progress = flashTimer / maxFlashTime;
+            currentFlashDamageBonus = 1f + progress; // Ranges from 1.0 to 2.0
+            flashTimer = 0f;
+            if (currentFlashDamageBonus > 1.5f) {
+                gameWorld.spawnText(x, y + height, "FLASH ATTACK!", Color.YELLOW, 0.8f);
+            }
+        } else {
+            currentFlashDamageBonus = 1f;
+        }
 
         // Calculate attack direction based on mouse
         attackAngle = gameWorld.gameScreen.getMouseAngle();
@@ -424,20 +575,42 @@ public class Player {
     }
 
     public void loseHP(float amount) {
-        // 1. DODGE CHECK
-        if (MathUtils.random() < luck) {
-            // Use our new spawnText function
+        float comboMult = 1f;
+        if (hasComboGod && gameWorld.combo > 0) {
+            comboMult = (float) Math.pow(1f + comboGodBoostPerCombo, gameWorld.combo);
+        }
+
+        float effectiveLuck = luck * comboMult;
+        if (MathUtils.random() < effectiveLuck) {
             gameWorld.spawnText(x, y + height, "DODGE!", Color.CYAN, 0.6f);
             return;
         }
 
-        float effectiveArmor = Math.min(armor, 90f); // Cap at 90% reduction
-        float actualDamage = amount * (1f - (effectiveArmor / 100f));
+        if (hasMasochist) {
+            if (MathUtils.random() < effectiveLuck) {
+                heal((int)(amount / 3), gameWorld);
+                return;
+            }
+        }
 
-        // 3. APPLY DAMAGE
+        // --- 2. VETERAN STACKING ---
+        if (hasVeteran) {
+            if (veteranStacks < MAX_VETERAN_STACKS) {
+                veteranStacks++;
+                armor += veteranBoost;
+            }
+            veteranTimer = VETERAN_DURATION;
+        }
+
+        float effectiveArmor = armor * comboMult;
+
+        float reductionPercentage = Math.min(effectiveArmor, 90f);
+        float actualDamage = amount * (1f - (reductionPercentage / 100f));
+
+        // --- 4. APPLY DAMAGE ---
         currentHP -= actualDamage;
 
-        // 4. DEATH CHECK
+        // --- 5. DEATH CHECK ---
         if (currentHP <= 0) {
             currentHP = 0;
             die(gameWorld);
@@ -457,11 +630,64 @@ public class Player {
     }
 
     public void onDealDamage(float damageDealt) {
-        float stealAmount = damageDealt * (lifesteal * lifestealMultiplier);
+        float hpPercent = currentHP / baseHP;
+        float currentLifesteal = lifesteal * lifestealMultiplier;
+
+        // Last Stand Lifesteal: Scales from 0 (at 100% HP) to 0.2 (at 25% HP)
+        if (hasLastStand) {
+            currentLifesteal += MathUtils.clamp((1f - hpPercent) / 3.75f, 0f, lastStandMaxLifesteal);
+        }
+
+        float stealAmount = damageDealt * currentLifesteal;
+
+        if (hasLuckyThrees) {
+            stealAmount += (attackCount % 3 == 0) ? luckyThreesHeal : 0;
+        }
 
         if (stealAmount >= 1f) {
             heal(stealAmount, gameWorld);
-            gameWorld.spawnDamage(x - 5, y + height - 5, (int)stealAmount, Color.GREEN, 0.6f);
+            gameWorld.spawnDamage(x - 5, y + height - 5, (int)stealAmount, Color.GREEN, 0.8f);
+        }
+    }
+
+    // AUGMENTS
+
+    public float getNearestLightDistance() {
+        float minDistance = Float.MAX_VALUE;
+
+        // Calculate center of player for more accuracy
+        float centerX = x + width / 2f;
+        float centerY = y + height / 2f;
+
+        for (float[] light : LIGHT_POSITIONS) {
+            float lightX = light[0];
+            float lightY = light[1];
+
+            // Standard distance formula: sqrt((x2-x1)^2 + (y2-y1)^2)
+            float dist = (float) Math.sqrt(
+                Math.pow(centerX - lightX, 2) + Math.pow(centerY - lightY, 2)
+            );
+
+            if (dist < minDistance) {
+                minDistance = dist;
+            }
+        }
+        return minDistance;
+    }
+
+    private void updateNearbyEnemies(GameWorld gameWorld) {
+        nearbyEnemies = 0;
+        for (Enemy e : gameWorld.enemies) {
+            if (!e.isAlive) continue;
+
+            // Simple distance check
+            float dx = x - e.x;
+            float dy = y - e.y;
+            float dist = (float) Math.sqrt(dx*dx + dy*dy);
+
+            if (dist < nearbyDistance) {
+                nearbyEnemies++;
+            }
         }
     }
 
@@ -473,9 +699,15 @@ public class Player {
         int bottom = (int)((testY + collisionOffsetY) / gameWorld.tileSize);
         int top = (int)((testY + collisionOffsetY + collisionHeight) / gameWorld.tileSize);
 
+        if (left < 0 || bottom < 0) return true;
+
         for (int y = bottom; y <= top; y++) {
             for (int x = left; x <= right; x++) {
-                if (gameWorld.isTileType(x, y, type)) return true;
+                try {
+                    if (gameWorld.isTileType(x, y, type)) return true;
+                } catch (Exception e) {
+                    return true;
+                }
             }
         }
         return false;
@@ -495,12 +727,36 @@ public class Player {
 
     // --- BOOSTS & UPGRADES ---
 
-    public void boostSpeed(float time, float multiplier){ speedBoostTimer = time; speedMultiplier = multiplier;}
+    public void boostSpeed(float time, float multiplier){
+        if (hasBoostedAnimal) {
+            time = boostedAnimalBoostLength;
+            baseSpeed += (baseSpeed * multiplier - baseSpeed) * boostedAnimalBoostPermanent;
+        }
+        speedBoostTimer = time;
+        speedMultiplier = multiplier;
+    }
+
     public void boostDamage(float time, float multiplier){
+        if (hasBoostedAnimal) {
+            time = boostedAnimalBoostLength;
+            baseDamage += (baseDamage * multiplier - baseDamage) * boostedAnimalBoostPermanent;
+            damage = baseDamage;
+            baseLifesteal += (baseLifesteal * multiplier - baseLifesteal) * boostedAnimalBoostPermanent;
+            lifesteal = baseLifesteal;
+        }
         damageBoostTimer = time;
         damageMultiplier = multiplier;
         lifestealBoostTimer = time;
         lifestealMultiplier = multiplier;
+    }
+
+    public void boostHP(float amount) {
+        if (hasBoostedAnimal) {
+            baseHP += amount * boostedAnimalBoostPermanent;
+            heal(amount + amount * boostedAnimalBoostPermanent, gameWorld);
+        } else {
+            heal(amount, gameWorld);
+        }
     }
 
     public void upgradeStat(StatType stat) {
@@ -553,7 +809,6 @@ public class Player {
         }
         if (success) {
             skillPoints--;
-            System.out.println("Upgraded " + stat + "! Points remaining: " + skillPoints);
         }
     }
 

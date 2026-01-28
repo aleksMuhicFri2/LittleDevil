@@ -150,6 +150,8 @@ public class GameWorld {
         // Enemies
         enemies = new ArrayList<>();
 
+        augmentManager = new AugmentManager(this, player);
+
         // Wait for trigger from tutorial
         waitingForNextWave = false;
         canStartNextWave = false;
@@ -189,8 +191,6 @@ public class GameWorld {
         param.color = Color.WHITE;
         damageFont = generator.generateFont(param);
         generator.dispose();
-
-        augmentManager = new AugmentManager();
     }
 
     // update all the logic
@@ -483,7 +483,7 @@ public class GameWorld {
     }
 
     public void spawnText(float x, float y, String message, Color color, float scale) {
-        damageTexts.add(new DamageText(x, y, message, 0.7f, damageFont, color, scale));
+        damageTexts.add(new DamageText(x, y, message, 1f, damageFont, color, scale));
     }
 
     public void dispose() {
@@ -613,20 +613,27 @@ public class GameWorld {
         float angleToPlayer = (float) Math.atan2(player.y - enemy.y, player.x - enemy.x);
         float backAngle = angleToPlayer + (float) Math.PI;
 
+        // Luck factor for general drops
         float luckFactor = player.luck * 0.2f;
 
-        if (MathUtils.random() < 0.005f + (luckFactor * 0.1f)) {
+        // --- 1. SKILL POINT DROP ---
+        // Boosted by Grave Looter, capped at 5%
+        float skillPointChance = MathUtils.clamp(0.005f + (luckFactor * 0.1f) + (player.hasGraveLooter ? 0.02f : 0f), 0f, 0.05f);
+        if (MathUtils.random() < skillPointChance) {
             player.skillPoints++;
             spawnText(enemy.x, enemy.y + 20, "SKILL POINT!", Color.GOLD, 1.2f);
         }
 
-        // 3. Process Guaranteed Orbs
+        // --- 2. GUARANTEED & BONUS XP ORBS ---
         for (int i = 0; i < enemy.guaranteedOrbsCounts.length; i++) {
             Orb.OrbType type = (i == 1) ? Orb.OrbType.RARE : (i == 2 ? Orb.OrbType.GOLD : Orb.OrbType.COMMON);
             int count = (int) enemy.guaranteedOrbsCounts[i];
 
-            // Luck Bonus: Chance for an extra XP orb if it's the XP type (index 0)
-            if (i == 0 && MathUtils.random() < luckFactor * 2) {
+            // Chance for extra XP orbs (i == 0 is XP type)
+            float extraOrbChance = luckFactor * 2;
+            if (player.hasGraveLooter) extraOrbChance += 0.2f; // Grave Looter gives +20% extra orb chance
+
+            if (i == 0 && MathUtils.random() < MathUtils.clamp(extraOrbChance, 0f, 0.8f)) {
                 count++;
                 spawnText(enemy.x, enemy.y + 10, "BONUS XP", new Color(0.8f, 0.4f, 1f, 1f), 0.8f);
             }
@@ -636,13 +643,42 @@ public class GameWorld {
             }
         }
 
+        // --- 3. EXTRA RANDOM ORB CHANCES ---
         for (int i = 0; i < enemy.firstExtraChances.length; i++) {
             float baseChance = enemy.firstExtraChances[i];
             float luckyChance = baseChance + ((1f - baseChance) * luckFactor);
 
-            if (rand.nextFloat() < luckyChance) {
+            // Grave Looter adds a flat 15% to these random drop chances
+            if (player.hasGraveLooter) luckyChance += 0.15f;
+
+            if (rand.nextFloat() < MathUtils.clamp(luckyChance, 0f, 0.95f)) {
                 Orb.OrbType type = (i == 1) ? Orb.OrbType.RARE : (i == 2 ? Orb.OrbType.GOLD : Orb.OrbType.COMMON);
                 spawnSingleOrb(enemy, backAngle, type, 100f, 30f, rand, player);
+            }
+        }
+
+        // --- 4. GRAVE LOOTER: DIRECT STAT BOOSTS ---
+        if (player.hasGraveLooter) {
+            // Rare chance (capped at 5%) to get a temporary boost directly upon kill
+            float boostDropChance = MathUtils.clamp(luckFactor * 0.5f, 0.01f, 0.05f);
+
+            if (rand.nextFloat() < boostDropChance) {
+                int choice = MathUtils.random(2); // 0 = Speed, 1 = Damage, 2 = HP
+
+                switch (choice) {
+                    case 0: // Speed Boost
+                        player.boostSpeed(8f, 1.3f);
+                        spawnText(enemy.x, enemy.y + 30, "+SPEED", Color.CYAN, 1.1f);
+                        break;
+                    case 1: // Damage Boost
+                        player.boostDamage(8f, 1.3f);
+                        spawnText(enemy.x, enemy.y + 30, "+DAMAGE", Color.RED, 1.1f);
+                        break;
+                    case 2: // HP Boost
+                        player.boostHP(player.baseHP * 0.15f); // 15% HP heal/boost
+                        spawnText(enemy.x, enemy.y + 30, "+HEALTH", Color.GREEN, 1.1f);
+                        break;
+                }
             }
         }
     }
