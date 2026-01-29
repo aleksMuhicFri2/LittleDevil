@@ -13,7 +13,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Align;
-import com.badlogic.gdx.utils.viewport.ExtendViewport;
+import com.badlogic.gdx.utils.viewport.Viewport; // CHANGED: Generic Viewport import
 
 import java.util.List;
 
@@ -25,14 +25,11 @@ public class UIManager {
     private final SpriteBatch batch;
 
     private final OrthographicCamera camera;
-    private final ExtendViewport viewport;
+    private final Viewport viewport; // CHANGED: From ExtendViewport to Viewport
 
     private final BitmapFont scoreFont, waveFont, comboFont, levelFont;
     private final BitmapFont skillPointsFont;
-
-    // Removed descFont, we will use tutorialFont instead for better quality
     private final BitmapFont tooltipFont;
-    // Added reference to tutorialFont here for easy access
     private final BitmapFont tutorialFont;
 
 
@@ -47,14 +44,14 @@ public class UIManager {
 
     private float uiOffsetY = 0f;
     private float targetUiOffsetY = 0f;
-    private final float UI_SLIDE_DISTANCE = 70f;
+    private final float UI_SLIDE_DISTANCE = 120f;
     private final float UI_SLIDE_SPEED = 8f;
 
     private boolean upgradePageOpen = false;
     private boolean augmentPageOpen = false;
 
-    private float upgradePanelWidth = 500f;
-    private float upgradePanelHeight = 380f;
+    private float upgradePanelWidth = 900f;  // Was 500f
+    private float upgradePanelHeight = 700f; // Was 380f
 
     private TextureRegion[][] levelSprites;
     private Texture plusButton;
@@ -64,17 +61,17 @@ public class UIManager {
 
     private TutorialManager tutorialManager;
 
-    private final float CARD_SCALE = 5.5f;
+    private final float CARD_SCALE = 10.0f;
     private final float CARD_W = 48f * CARD_SCALE;
     private final float CARD_H = 64f * CARD_SCALE;
-    private final float CARD_SPACING = 300f;
+    private final float CARD_SPACING = 500f;
 
     private final float SLOT_SIZE = 40f;
     private final float SLOT_VISIBLE_Y = 15f;
     private final float SLOT_SPACING = 29f;
 
     private float[] augmentCardScales = {1f, 1f, 1f};
-    private final float HOVER_SCALE = 1.2f; // How big it grows (1.2 = 20% bigger)
+    private final float HOVER_SCALE = 1.2f;
     private final float SCALE_SPEED = 15f;
 
 
@@ -83,13 +80,13 @@ public class UIManager {
         Player player,
         SpriteBatch batch,
         OrthographicCamera camera,
-        ExtendViewport viewport,
+        Viewport viewport, // CHANGED: From ExtendViewport to Viewport
         BitmapFont scoreFont,
         BitmapFont waveFont,
         BitmapFont comboFont,
         BitmapFont levelFont,
         BitmapFont skillPointsFont,
-        BitmapFont tutorialFont, // Passed in constructor
+        BitmapFont tutorialFont,
         Texture playerUI,
         Texture wavePanel,
         Texture barsBackground,
@@ -108,9 +105,7 @@ public class UIManager {
         this.comboFont = comboFont;
         this.levelFont = levelFont;
         this.skillPointsFont = skillPointsFont;
-        this.tutorialFont = tutorialFont; // Assign it
-
-        // Removed descFont initialization
+        this.tutorialFont = tutorialFont;
 
         this.tooltipFont = new BitmapFont();
         this.tooltipFont.getData().setScale(0.8f);
@@ -159,7 +154,6 @@ public class UIManager {
         pix.dispose();
     }
 
-
     private void sliceUpgradeSheet(TextureRegion[] output, Texture sheet) {
         int fw = 64;
         int fh = 16;
@@ -168,9 +162,8 @@ public class UIManager {
         }
     }
 
-
     public void render() {
-        viewport.apply();
+        viewport.apply(); // Ensures the batch respects the FitViewport (black bars)
         camera.update();
         batch.setProjectionMatrix(camera.combined);
 
@@ -191,7 +184,9 @@ public class UIManager {
 
         drawAugmentSlots();
 
+        tutorialFont.getData().setScale(1.5f);
         tutorialManager.render(batch, viewport.getWorldWidth(), viewport.getWorldHeight());
+        tutorialFont.getData().setScale(1.0f);
 
         if (augmentPageOpen) {
             renderAugmentPage();
@@ -201,7 +196,6 @@ public class UIManager {
 
         batch.end();
     }
-
 
     public void openUpgradePage() { if (player.skillPoints > 0) {
         upgradePageOpen = true;
@@ -216,55 +210,39 @@ public class UIManager {
     }
     public void closeAugmentPage() { augmentPageOpen = false; }
 
-
     private void renderAugmentPage() {
-        // 1. Draw Background Overlay
         batch.setColor(1f, 1f, 1f, 1f);
-        batch.draw(darkOverlay, camera.position.x - viewport.getWorldWidth()/2, camera.position.y - viewport.getWorldHeight()/2, viewport.getWorldWidth(), viewport.getWorldHeight());
+        batch.draw(darkOverlay, 0, 0, 1920, 1080);
 
         float centerX = viewport.getWorldWidth() / 2f;
         float centerY = viewport.getWorldHeight() / 2f;
 
-        // --- NEW: DRAW HEADER TEXT ---
+        // --- FIX: Header Text Smaller and Higher ---
         tutorialFont.setColor(Color.WHITE);
-        tutorialFont.getData().setScale(1.5f); // Big scale
+        tutorialFont.getData().setScale(1.4f); // Smaller (was 1.8f)
         layout.setText(tutorialFont, "CHOOSE YOUR AUGMENT");
-
         float textX = centerX - layout.width / 2f;
-        // Position it well above the cards (Card Height is roughly 350px)
-        float textY = centerY + (CARD_H * 0.65f);
+        // Higher offset (using 0.85f instead of 0.65f)
+        float textY = centerY + (CARD_H * 0.72f);
 
         tutorialFont.draw(batch, layout, textX, textY);
-
-        // Reset font for next draws
         tutorialFont.getData().setScale(1f);
-        // -----------------------------
 
-        // 2. Get mouse position for hover checks
-        Vector3 mouse = camera.unproject(new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0));
+        viewport.unproject(tmp.set(Gdx.input.getX(), Gdx.input.getY(), 0));
+        Vector3 mouse = tmp;
 
         float[] positionsX = { centerX - CARD_SPACING, centerX, centerX + CARD_SPACING };
         List<Augment> options = world.augmentManager.currentOptions;
 
-        // 3. Draw Cards
-        // Added index arguments (0, 1, 2)
-        if (options.size() >= 1) {
-            drawAugmentCardWithHover(options.get(0), positionsX[0], centerY, 0, mouse);
-        }
-        if (options.size() >= 2) {
-            drawAugmentCardWithHover(options.get(1), positionsX[1], centerY, 1, mouse);
-        }
-        if (options.size() >= 3) {
-            drawAugmentCardWithHover(options.get(2), positionsX[2], centerY, 2, mouse);
-        }
+        if (options.size() >= 1) drawAugmentCardWithHover(options.get(0), positionsX[0], centerY, 0, mouse);
+        if (options.size() >= 2) drawAugmentCardWithHover(options.get(1), positionsX[1], centerY, 1, mouse);
+        if (options.size() >= 3) drawAugmentCardWithHover(options.get(2), positionsX[2], centerY, 2, mouse);
     }
 
-    // Helper to keep the main render method clean
     private void drawAugmentCardWithHover(Augment aug, float x, float y, int index, Vector3 mouse) {
         boolean isHovered = mouse.x >= x - CARD_W/2f && mouse.x <= x + CARD_W/2f &&
             mouse.y >= y - CARD_H/2f && mouse.y <= y + CARD_H/2f;
 
-        // Smoothly animate scale
         float targetScale = isHovered ? HOVER_SCALE : 1.0f;
         augmentCardScales[index] = MathUtils.lerp(augmentCardScales[index], targetScale, Gdx.graphics.getDeltaTime() * SCALE_SPEED);
 
@@ -272,135 +250,89 @@ public class UIManager {
     }
 
     private void drawAugmentCard(Augment aug, float centerX, float centerY, int cardIndex) {
-
-        // 1. Calculate Mouse State & Animation
         float dt = Gdx.graphics.getDeltaTime();
+        viewport.unproject(tmp.set(Gdx.input.getX(), Gdx.input.getY(), 0));
 
-        // Unproject mouse coordinates
-        float mx = Gdx.input.getX();
-        float my = Gdx.input.getY();
-        viewport.unproject(tmp.set(mx, my, 0));
-
-        // Get current animated scale for this slot
         float currentScale = augmentCardScales[cardIndex];
-
-        // Calculate dimensions based on CURRENT scale
         float drawW = CARD_W * currentScale;
         float drawH = CARD_H * currentScale;
 
-        // Center the card based on its grown size
         float x = centerX - drawW / 2f;
         float y = centerY - drawH / 2f;
 
-        // Check Hover (Collision)
         boolean isHovered = (tmp.x >= x && tmp.x <= x + drawW && tmp.y >= y && tmp.y <= y + drawH);
-
-        // Smoothly interpolate scale based on hover state
         float targetScale = isHovered ? HOVER_SCALE : 1.0f;
         augmentCardScales[cardIndex] = MathUtils.lerp(augmentCardScales[cardIndex], targetScale, dt * SCALE_SPEED);
-
-        // Re-assign scale for drawing after the update
         currentScale = augmentCardScales[cardIndex];
 
-        // --- DRAWING ---
-
-        // 2. Draw Card Background
+        // 1. Card Texture
         TextureRegion cardRegion = world.augmentManager.getAugmentCard(aug.iconIndex);
         if (cardRegion != null) {
             batch.setColor(1, 1, 1, 1);
             batch.draw(cardRegion, x, y, drawW, drawH);
         }
 
-        // 3. Draw Title
-        // Scale font size by currentScale so text grows with the card
-        float baseTitleScale = 0.7f;
+        float baseTitleScale = 0.6f; // Smaller (was 0.95f)
         tutorialFont.getData().setScale(baseTitleScale * currentScale);
         tutorialFont.setColor(Color.GOLD);
-
         layout.setText(tutorialFont, aug.name);
 
-        float titleX = centerX - layout.width / 2f; // Easiest to center using centerX directly
-        // Adjust offset relative to card height
-        float titleY = y + (drawH * 0.37f);
-
+        float titleX = centerX - layout.width / 2f;
+        float titleY = y + (drawH * 0.36f);
         tutorialFont.draw(batch, layout, titleX, titleY);
 
-        // 4. Draw Description
-        float baseDescScale = 0.55f;
+        // --- FIX: Description Smaller and Lower ---
+        float baseDescScale = 0.45f; // Smaller (was 0.75f)
         tutorialFont.getData().setScale(baseDescScale * currentScale);
         tutorialFont.setColor(Color.WHITE);
 
-        float leftSidePadding = 65f * currentScale;
-        float rightSidePadding = 65f * currentScale;
-        float maxTextWidth = drawW - (leftSidePadding + rightSidePadding);
+        float sidePadding = 120f * currentScale;
+        float maxTextWidth = drawW - (sidePadding * 2);
 
-        layout.setText(tutorialFont, aug.description, Color.WHITE, maxTextWidth, Align.left, true);
+        // Re-calculating layout with smaller font
+        layout.setText(tutorialFont, aug.description, Color.WHITE, maxTextWidth, Align.center, true);
 
-        float descX = x + leftSidePadding;
-        float descY = y + (drawH * 0.30f);
+        float descX = x + sidePadding;
+        float descY = titleY - 50f * currentScale;
 
-        tutorialFont.draw(batch, layout, descX, descY);
+        // Using the String draw method for easier Align.center
+        tutorialFont.draw(batch, aug.description, descX, descY, maxTextWidth, Align.center, true);
 
-        // Reset Font State
         tutorialFont.getData().setScale(1f);
         tutorialFont.setColor(Color.WHITE);
 
-        // 5. Input Logic
-        // We already checked hover above, so we just check for click
+        // Input Handling
         if (isHovered && Gdx.input.justTouched()) {
             world.augmentManager.selectAugment(aug);
             world.augmentSelectionPending = false;
-
-            // Reset scales for next time we open the menu
-            augmentCardScales[0] = 1f;
-            augmentCardScales[1] = 1f;
-            augmentCardScales[2] = 1f;
-
+            augmentCardScales[0] = 1f; augmentCardScales[1] = 1f; augmentCardScales[2] = 1f;
             closeAugmentPage();
             openUpgradePage();
         }
     }
 
-
-    // --- AUGMENT SLOTS (BOTTOM BAR) ---
     private void drawAugmentSlots() {
         float totalWidth = (5 * SLOT_SIZE) + (4 * SLOT_SPACING);
         float startX = (viewport.getWorldWidth() - totalWidth) / 2f;
-
         float currentY = (SLOT_VISIBLE_Y - UI_SLIDE_DISTANCE) + uiOffsetY;
 
         for (int i = 0; i < 5; i++) {
-            // This is the logical top-left corner of the "slot"
             float slotX = startX + i * (SLOT_SIZE + SLOT_SPACING);
-
             Augment aug = world.augmentManager.playerSlots[i];
-
             if (aug != null) {
                 TextureRegion icon = world.augmentManager.getIcon(aug.iconIndex);
-
                 if (icon != null) {
-                    // 1. MAKE IT LARGER
-                    // Multiply SLOT_SIZE by 1.5 (or whatever scale you prefer)
                     float iconScale = 1.4f;
                     float drawSize = SLOT_SIZE * iconScale;
-
-                    // 2. CENTER IT
-                    // Formula: SlotPosition + (SlotSize - ImageSize) / 2
                     float drawX = slotX + (SLOT_SIZE - drawSize) / 2f;
                     float drawY = currentY + (SLOT_SIZE - drawSize) / 2f;
-
                     batch.setColor(1f, 1f, 1f, 1f);
                     batch.draw(icon, drawX, drawY, drawSize, drawSize);
 
-                    // 3. TOOLTIP DETECTION
-                    // We check if the mouse is inside the drawn image area
                     if (currentY > 0) {
                         Vector3 mouse = camera.unproject(new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0));
-
                         if (mouse.x >= drawX && mouse.x <= drawX + drawSize &&
                             mouse.y >= drawY && mouse.y <= drawY + drawSize) {
-
-                            // Draw tooltip centered above the icon
                             drawTooltip(aug, slotX + SLOT_SIZE / 2f, drawY + drawSize + 10f);
                         }
                     }
@@ -413,107 +345,101 @@ public class UIManager {
         String text = aug.name + "\n" + aug.description;
         tooltipFont.getData().setScale(0.8f);
         layout.setText(tooltipFont, text);
-
         float w = layout.width + 20f;
         float h = layout.height + 20f;
-
         batch.setColor(0f, 0f, 0f, 0.95f);
         batch.draw(slotBorder, x - w/2f, y, w, h);
         batch.setColor(1f, 1f, 1f, 1f);
-
         tooltipFont.setColor(Color.YELLOW);
         tooltipFont.draw(batch, text, x - layout.width/2f, y + h - 10f);
         tooltipFont.setColor(Color.WHITE);
     }
 
-
     private void renderUpgradePage() {
-        float panelX = camera.position.x - upgradePanelWidth / 2f;
-        float panelY = camera.position.y - upgradePanelHeight / 2f;
+        float panelX = (viewport.getWorldWidth() - upgradePanelWidth) / 2f;
+        float panelY = (viewport.getWorldHeight() - upgradePanelHeight) / 2f;
 
         batch.draw(panelBackground, panelX, panelY, upgradePanelWidth, upgradePanelHeight);
         drawSkillPoints(panelX, panelY, upgradePanelWidth, upgradePanelHeight);
 
-        float rowSpacing = 40f;
-        float y1 = panelY + upgradePanelHeight - 130f;
+        // INCREASED: More space between rows
+        float rowSpacing = 80f;
+        // MOVED DOWN: Lower startY to clear the "Skill Points" area
+        float startY = panelY + upgradePanelHeight - 240f;
 
-        float y2 = y1 - rowSpacing;
-        float y3 = y2 - rowSpacing;
-        float y4 = y3 - rowSpacing;
-        float y5 = y4 - rowSpacing;
-
-        drawUpgradeRow("Attack", 0, y1, player.attackLevel, Player.StatType.ATTACK);
-        drawUpgradeRow("Agility", 1, y2, player.agilityLevel, Player.StatType.AGILITY);
-        drawUpgradeRow("Defense", 2, y3, player.defenseLevel, Player.StatType.DEFENSE);
-        drawUpgradeRow("Luck",    3, y4, player.luckLevel,    Player.StatType.LUCK);
-        drawUpgradeRow("Super",   4, y5, player.superLevel,   Player.StatType.SUPER);
+        drawUpgradeRow("Attack",  0, startY, player.attackLevel, Player.StatType.ATTACK);
+        drawUpgradeRow("Agility", 1, startY - rowSpacing, player.agilityLevel, Player.StatType.AGILITY);
+        drawUpgradeRow("Defense", 2, startY - rowSpacing * 2, player.defenseLevel, Player.StatType.DEFENSE);
+        drawUpgradeRow("Luck",    3, startY - rowSpacing * 3, player.luckLevel, Player.StatType.LUCK);
+        drawUpgradeRow("Super",   4, startY - rowSpacing * 4, player.superLevel, Player.StatType.SUPER);
     }
 
     private void drawSkillPoints(float panelX, float panelY, float panelW, float panelH) {
         String text = "Skill Points: " + player.skillPoints;
+
+        skillPointsFont.getData().setScale(1f);
         skillPointsLayout.setText(skillPointsFont, text);
+
         float textX = panelX + (panelW - skillPointsLayout.width) / 2f;
-        float textY = panelY + panelH - 80f;
+        float textY = panelY + panelH - 135f;
+
         skillPointsFont.draw(batch, text, textX, textY);
+        skillPointsFont.getData().setScale(1.0f);
     }
 
-
     private void drawUpgradeRow(String label, int statIndex, float y, int level, Player.StatType statType) {
-        float panelX = camera.position.x - upgradePanelWidth / 2f;
-        float nameX = panelX + 80;
-        float iconX = panelX + 200;
-        float plusX = panelX + 400;
+        float panelX = (viewport.getWorldWidth() - upgradePanelWidth) / 2f;
 
-        scoreFont.getData().setScale(0.7f);
-        scoreFont.draw(batch, label, nameX, y);
-        scoreFont.getData().setScale(1f);
+        float nameX = panelX + 110f;
+        float iconX = panelX + 360f;
+        float plusX = panelX + 710f;
 
+        // 1. SMALLER FONT: 0.9f is better for the 1080p layout
+        scoreFont.getData().setScale(0.9f);
+        scoreLayout.setText(scoreFont, label);
+
+        // CENTER TEXT: We draw at y + half-height to align the middle of the text with y
+        scoreFont.draw(batch, label, nameX, y + scoreLayout.height / 2f);
+        scoreFont.getData().setScale(1.0f);
+
+        // 2. SCALE ICONS
         TextureRegion icon = levelSprites[statIndex][level];
-        float iconScale = 2.8f;
+        float iconScale = 4.2f;
         float iw = icon.getRegionWidth() * iconScale;
         float ih = icon.getRegionHeight() * iconScale;
-        batch.draw(icon, iconX, y - ih * 0.7f, iw, ih);
+        // Align middle of icon with y
+        batch.draw(icon, iconX, y - ih / 2f, iw, ih);
 
-        float btnScale = 2.8f;
+        // 3. SCALE PLUS BUTTON
+        float btnScale = 4.2f;
         float bw = plusButton.getWidth() * btnScale;
         float bh = plusButton.getHeight() * btnScale;
-        float plusY = y - bh * 0.7f;
+        float plusY = y - bh / 2f; // Align middle of button with y
 
-        // Only draw button if we have points
         if (player.skillPoints > 0) {
             batch.draw(plusButton, plusX, plusY, bw, bh);
         }
 
+        // Input Detection
         if (Gdx.input.justTouched()) {
-            float mx = Gdx.input.getX();
-            float my = Gdx.input.getY();
-            viewport.unproject(tmp.set(mx, my, 0));
-
-            // Check click
+            viewport.unproject(tmp.set(Gdx.input.getX(), Gdx.input.getY(), 0));
             if (tmp.x >= plusX && tmp.x <= plusX + bw &&
                 tmp.y >= plusY && tmp.y <= plusY + bh) {
-
-                // 1. Spend the point
                 player.upgradeStat(statType);
-
-                // 2. If that was the last point, close the page immediately
-                if (player.skillPoints <= 0) {
-                    closeUpgradePage();
-                }
+                if (player.skillPoints <= 0) closeUpgradePage();
             }
         }
     }
 
-
     private void drawPlayerUI() {
         float baseW = 112f;
         float baseH = 48f;
-        float scale = getScale(3.5f);
+        float scale = getScale(6.5f);
         float w = baseW * scale;
         float h = baseH * scale;
 
         float x = (viewport.getWorldWidth() - w) / 2f;
-        float y = -h * 0.4f + uiOffsetY;
+        float y = -120f + uiOffsetY;
 
         float hp = Math.min(1f, player.displayHP / player.baseHP);
         float en = Math.min(1f, player.displayEnergy / player.baseEnergy);
@@ -528,7 +454,6 @@ public class UIManager {
         batch.draw(playerUI, x, y, w, h);
     }
 
-
     private void drawLevelText(float uiY, float uiHeight, float scale) {
         String txt = "Lvl " + (int)player.level;
         levelLayout.setText(levelFont, txt);
@@ -537,57 +462,54 @@ public class UIManager {
         levelFont.draw(batch, txt, x, y);
     }
 
-
     private void drawWavePanel() {
         float base = 64f;
-        float scale = getScale(3f);
+        // INCREASED: from 3f to 5f
+        float scale = getScale(5f);
         float w = base * scale;
         float h = base * scale;
+
         float x = (viewport.getWorldWidth() - w) / 2f;
-        float y = viewport.getWorldHeight() - (h / 1.5f);
+        // Move it down slightly from the very top
+        float y = viewport.getWorldHeight() - h / 1.4f;
         batch.draw(wavePanel, x, y, w, h);
     }
-
 
     private void drawWaveNumber() {
         String label = "Wave";
         String value = String.valueOf(world.getWave());
-
         waveLayout.setText(waveFont, label);
         float lw = waveLayout.width;
         waveLayout.setText(waveFont, value);
         float vw = waveLayout.width;
-
         float total = lw + 10f + vw;
         float x = (viewport.getWorldWidth() - total) / 2f;
-        float y = viewport.getWorldHeight() - 43f;
-
+        float y = viewport.getWorldHeight() - 85f;
         waveFont.draw(batch, label, x, y);
         waveFont.draw(batch, value, x + lw + 10f, y);
     }
 
-
     private void drawScore() {
-        scoreLayout.setText(scoreFont, "Score:");
-        float x = 20f;
-        float y = viewport.getWorldHeight() - 20f;
-        scoreFont.draw(batch, "Score:", x, y);
-        scoreFont.draw(batch, String.valueOf(world.getScore()), x + scoreLayout.width + 20f, y);
+        scoreFont.getData().setScale(1.2f); // Make the font a bit beefier
+        scoreLayout.setText(scoreFont, "Score: ");
+        float x = 40f; // More padding from left
+        float y = viewport.getWorldHeight() - 40f; // More padding from top
+        scoreFont.draw(batch, "Score: ", x, y);
+        scoreFont.draw(batch, String.valueOf(world.getScore()), x + scoreLayout.width, y);
     }
-
 
     private void drawCombo() {
         int combo = world.getCombo();
         if (combo <= 0) return;
 
-        comboLayout.setText(comboFont, "Combo:");
-        float x = 20f;
-        float y = viewport.getWorldHeight() - 60f;
+        comboFont.getData().setScale(1.2f);
+        comboLayout.setText(comboFont, "Combo: ");
+        float x = 40f;
+        float y = viewport.getWorldHeight() - 120f;
 
-        comboFont.draw(batch, "Combo:", x, y);
-        comboFont.draw(batch, combo + "x", x + comboLayout.width + 20f, y);
+        comboFont.draw(batch, "Combo: ", x, y);
+        comboFont.draw(batch, combo + "x", x + comboLayout.width, y);
     }
-
 
     private void updatePlayerDisplayValues(float delta) {
         float speed = 8f * delta;
@@ -607,17 +529,9 @@ public class UIManager {
         }
     }
 
-
     private float getScale(float maxScale) {
-        float refW = 1920f;
-        float refH = 1080f;
-        float s = Math.min(
-            Gdx.graphics.getWidth() / refW,
-            Gdx.graphics.getHeight() / refH
-        );
-        return Math.min(s * 8f, maxScale);
+        return maxScale;
     }
-
 
     public void resize(int w, int h) {
         viewport.update(w, h, true);

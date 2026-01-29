@@ -31,7 +31,11 @@ public class GameScreen implements Screen {
     private OrthographicCamera camera;
     private ExtendViewport viewport;
     private OrthographicCamera UICamera;
-    private ExtendViewport UIViewport;
+    private FitViewport UIViewport; // CHANGED: From ExtendViewport to FitViewport
+
+    // Virtual Resolution Constants
+    private final float VIRTUAL_WIDTH = 1920f;
+    private final float VIRTUAL_HEIGHT = 1080f;
 
     // Fonts and layouts
     private BitmapFont scoreFont, waveFont, comboFont, levelFont, skillFont, tutorialFont;
@@ -78,11 +82,12 @@ public class GameScreen implements Screen {
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
 
-        param.size = (int)(Gdx.graphics.getHeight() * 0.06f);
+        // CHANGED: Font sizes now use VIRTUAL_HEIGHT instead of Gdx.graphics.getHeight()
+        param.size = (int)(VIRTUAL_HEIGHT * 0.06f);
         param.color = new Color(0.85f, 0.85f, 0.85f, 0.5f);
         scoreFont = generator.generateFont(param);
 
-        param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
+        param.size = (int)(VIRTUAL_HEIGHT * 0.05f);
         param.color = new Color(0f, 0f, 0f, 1f);
         param.borderWidth = 0.5f;
         waveFont = generator.generateFont(param);
@@ -97,7 +102,7 @@ public class GameScreen implements Screen {
         param.borderWidth = 0f;
         levelFont = generator.generateFont(param);
 
-        param.size = (int)(Gdx.graphics.getHeight() * 0.05f);
+        param.size = (int)(VIRTUAL_HEIGHT * 0.05f);
         param.color = Color.WHITE;
         tutorialFont = generator.generateFont(param);
 
@@ -122,16 +127,18 @@ public class GameScreen implements Screen {
         darknessTexture = new Texture(pix);
         pix.dispose();
 
+        // World Viewport: Stays Extend so it fills the whole screen
         camera = new OrthographicCamera();
         viewport = new ExtendViewport(gameWorld.mapWidth / 2f, gameWorld.mapHeight / 2f, camera);
         viewport.apply();
         camera.position.set(viewport.getWorldWidth() / 2f, viewport.getWorldHeight() / 2f, 0);
         camera.update();
 
+        // UI Viewport: CHANGED to FitViewport with 1920x1080
         UICamera = new OrthographicCamera();
-        UIViewport = new ExtendViewport(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), UICamera);
+        UIViewport = new FitViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, UICamera);
         UIViewport.apply();
-        UICamera.position.set(UIViewport.getWorldWidth() / 2f, UIViewport.getWorldHeight() / 2f, 0);
+        UICamera.position.set(VIRTUAL_WIDTH / 2f, VIRTUAL_HEIGHT / 2f, 0);
         UICamera.update();
 
         uiManager = new UIManager(
@@ -153,6 +160,9 @@ public class GameScreen implements Screen {
             energyBar,
             xpBar
         );
+
+        // Ensure we call resize immediately to set everything up
+        resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
     }
 
     @Override
@@ -172,6 +182,7 @@ public class GameScreen implements Screen {
         renderLighting();
         batch.end();
 
+        // Draw UI using the locked 1080p projection
         batch.setProjectionMatrix(UICamera.combined);
         uiManager.render();
     }
@@ -216,6 +227,7 @@ public class GameScreen implements Screen {
 
     private void updateMouse() {
         Vector3 mouseScreen = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
+        // Using the world camera to find where the mouse is in the game level
         camera.unproject(mouseScreen);
         mouseWorldPos.set(mouseScreen.x, mouseScreen.y);
 
@@ -240,18 +252,19 @@ public class GameScreen implements Screen {
 
     @Override
     public void resize(int width, int height) {
-        // World viewport
+        // World viewport expands to fill the window
         viewport.update(width, height);
 
-        // UI viewport
+        // UI viewport scales the 1920x1080 canvas to fit the window
         UIViewport.update(width, height, true);
-        UICamera.position.set(UIViewport.getWorldWidth() / 2f, UIViewport.getWorldHeight() / 2f, 0);
+
+        // CHANGED: Position camera based on virtual coordinates, not pixel coordinates
+        UICamera.position.set(VIRTUAL_WIDTH / 2f, VIRTUAL_HEIGHT / 2f, 0);
         UICamera.update();
 
-        // Forward resize to UI manager
+        // Forward virtual dimensions to UIManager
         uiManager.resize(width, height);
     }
-
 
     @Override public void pause() {
         if (backgroundMusic != null && backgroundMusic.isPlaying()) backgroundMusic.pause();
