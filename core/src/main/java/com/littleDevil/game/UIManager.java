@@ -201,6 +201,9 @@ public class UIManager {
         upgradePageOpen = true;
     } }
     public void closeUpgradePage() { upgradePageOpen = false; }
+    public boolean isUpgradePageOpen() {
+        return upgradePageOpen;
+    }
 
     public void openAugmentPage() {
         if (!augmentPageOpen) {
@@ -301,14 +304,25 @@ public class UIManager {
         tutorialFont.getData().setScale(1f);
         tutorialFont.setColor(Color.WHITE);
 
-        // Input Handling
         if (isHovered && Gdx.input.justTouched()) {
             world.augmentManager.selectAugment(aug);
-            world.augmentSelectionPending = false;
+            world.pendingAugments--;
+
             augmentCardScales[0] = 1f; augmentCardScales[1] = 1f; augmentCardScales[2] = 1f;
             closeAugmentPage();
-            openUpgradePage();
+
+            if (world.pendingAugments <= 0) {
+                openUpgradePage();
+            }
         }
+    }
+
+    public boolean isAugmentPageOpen() {
+        return augmentPageOpen;
+    }
+
+    public boolean isAnyMenuOpen() {
+        return augmentPageOpen || upgradePageOpen;
     }
 
     private void drawAugmentSlots() {

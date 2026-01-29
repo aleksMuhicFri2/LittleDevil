@@ -51,6 +51,8 @@ public class GameWorld {
     public float TIME_BETWEEN_WAVES = 10f;
     public boolean waitingForNextWave = false;
 
+    private float statPrintTimer = 0f;
+
     // --- NEW INDEPENDENT SPAWN SYSTEM ---
     // Spawn Intervals
     private final float TEMPLAR_SPAWN_INTERVAL = 5f;
@@ -72,8 +74,7 @@ public class GameWorld {
 
     public AugmentManager augmentManager;
     // Flag to track if the player has reached a milestone level and needs to pick an augment
-    public boolean augmentSelectionPending = false;
-    private int lastAugmentLevel = 0; // Track last level we got an augment
+    public int pendingAugments = 0;
 
     // Candle Decorations
     private Texture candleSheet;
@@ -195,11 +196,44 @@ public class GameWorld {
 
     // update all the logic
     public void update(float delta, GameScreen gameScreen) {
+        // 1. STAT PRINTER (Keep this outside the pause so it still prints in menus if needed)
+        /*
+        statPrintTimer += delta;
+        if (statPrintTimer >= 1f) {
+            statPrintTimer = 0f;
+            System.out.println("--- SECONDS LOG: PLAYER STATS ---");
+            System.out.println("Health: " + (int)player.currentHP + "/" + (int)player.baseHP);
+            System.out.println("Armor: " + (int)player.armor);
+            System.out.println("Damage: " + player.baseDamage);
+            System.out.println("Lifesteal: " + (int)player.lifesteal);
+            System.out.println("Luck: " + player.luck);
+            System.out.println("Pending Augments: " + pendingAugments);
+            System.out.println("---------------------------------");
+        }
+         */
+
+        if (player.isOnAltar(this) && bigAltar.isFullyOpen()) {
+
+            // Priority 1: Pending Augments
+            if (pendingAugments > 0) {
+                if (!gameScreen.uiManager.isAugmentPageOpen()) {
+                    gameScreen.uiManager.openAugmentPage();
+                }
+            }
+            // Priority 2: Standard Upgrades (Skill Points)
+            else if (player.skillPoints > 0) {
+                if (!gameScreen.uiManager.isUpgradePageOpen()) {
+                    gameScreen.uiManager.openUpgradePage();
+                }
+            }
+        }
+
+        // --- EVERYTHING BELOW THIS LINE IS PAUSED DURING MENUS ---
+
         player.update(delta, this);
 
-        // 1. Process Spawn Logic (Independent Timers)
+        // 4. Process Spawn Logic (Independent Timers)
         if (waveActive && !player.isOnAltar(this)) {
-
             passiveScoreTimer += delta;
             if (passiveScoreTimer >= 1f) {
                 passiveScoreTimer = 0f;
@@ -238,7 +272,7 @@ public class GameWorld {
             }
         }
 
-        // 2. Wave Cooldown Logic
+        // 5. Wave Cooldown Logic
         if (waitingForNextWave) {
             int previousSeconds = (int) Math.ceil(TIME_BETWEEN_WAVES - nextWaveTimer);
             nextWaveTimer += delta;
@@ -256,42 +290,38 @@ public class GameWorld {
             }
         }
 
-        // 3. Update Entities
-        for(Enemy enemy :  enemies) {
+        // 6. Update Entities
+        for(Enemy enemy : enemies) {
             enemy.updatePathsForEnemy(delta, player, this, PATH_UPDATE_INTERVAL);
             enemy.update(delta, player, this, gameScreen);
         }
 
-        // 4. Update Mechanics
+        // 7. Update Mechanics
         if (combo > 0) {
             timeSinceLastHit += delta;
             if (timeSinceLastHit > comboTimeout) combo = 0;
         }
 
-        // 5. Remove Dead Enemies
+        // 8. Remove Dead Enemies
         if (!enemiesToRemove.isEmpty()) {
             enemies.removeAll(enemiesToRemove);
             enemiesToRemove.clear();
         }
 
-        if (waveActive &&
-            templarsToSpawn == 0 &&
-            nunsToSpawn == 0 &&
-            priestsToSpawn == 0 &&
-            enemies.isEmpty()) {
-
+        // End wave check
+        if (waveActive && templarsToSpawn == 0 && nunsToSpawn == 0 && priestsToSpawn == 0 && enemies.isEmpty()) {
             endWave();
         }
 
-        // 7. Update objects
+        // 9. Update Objects & Decor
         for (GameCandle candle : candles) candle.update(delta);
-        bigAltar.update(delta, player,this);
+        bigAltar.update(delta, player, this);
         smallAltarTopLeft.update(delta, player, this);
         smallAltarTopRight.update(delta, player, this);
         smallAltarBotRight.update(delta, player, this);
         smallAltarBotLeft.update(delta, player, this);
 
-        // Update lists
+        // 10. Update Effects & Projectiles
         for (int i = damageTexts.size() - 1; i >= 0; i--) {
             DamageText dt = damageTexts.get(i);
             dt.update(delta);
@@ -316,11 +346,6 @@ public class GameWorld {
             HealingAnimation h = healAnimations.get(i);
             h.update(delta);
             if (h.done) healAnimations.remove(i);
-        }
-
-        if (player.level % 5 == 0 && player.level > lastAugmentLevel && augmentManager.hasSpace()) {
-            augmentSelectionPending = true;
-            lastAugmentLevel = (int)player.level;
         }
     }
 

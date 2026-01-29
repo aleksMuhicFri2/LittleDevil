@@ -48,7 +48,7 @@ public class Player {
 
     // (Removed unused lifesteal variables to clean up, unless you plan to use them soon)
 
-    // --- COMBAT STATE ---
+    // --- COMBAT STATE --
     public boolean isAttacking = false;
     public boolean isDashing = false;
     private boolean facingRight = true;
@@ -544,23 +544,28 @@ public class Player {
 
             levelUp = true;
             xpOverflowAnimating = true;
+            // NEW: Check if this new level is a milestone level
+
+            if (level % 5 == 4 && level <= 25) {
+                gameWorld.pendingAugments++;
+            }
         }
     }
 
     private void applyPassiveLevelUpStats() {
-        baseHP += 5f;
-        currentHP += 5f;
-        armor += 1f;
+        baseHP += 3f;
+        currentHP += 3f;
+        armor += 0.75f;
 
-        baseSpeed += 2.0f;
+        baseSpeed += 1f;
 
-        baseDamage += 2f;
+        baseDamage += 1.5f;
         damage = baseDamage;
 
-        baseLifesteal += 0.004f;
+        baseLifesteal += 0.001f;
         lifesteal = baseLifesteal;
 
-        luck += 0.006f;
+        luck += 0.0025f;
         critChance = luck;
 
 
@@ -691,6 +696,45 @@ public class Player {
         }
     }
 
+    // Inside Player.java
+
+    public int calculateAttackDamage(GameWorld gameWorld, float specificMultiplier) {
+        float totalMultiplier = this.damageMultiplier * specificMultiplier;
+
+        // 1. Last Stand (HP based)
+        if (hasLastStand) {
+            totalMultiplier *= MathUtils.clamp(1f + (1f - (currentHP / baseHP)) / 0.75f, 1f, lastStandMaxBoost);
+        }
+
+        // 2. The Flash (Charge based)
+        if (hasTheFlash) {
+            totalMultiplier *= currentFlashDamageBonus;
+        }
+
+        // 3. Vampiric (Light based)
+        if (hasVampiric) {
+            totalMultiplier *= MathUtils.clamp(0.5f + (getNearestLightDistance() / 150f), 0.4f, 1.7f);
+        }
+
+        // 4. Combo God (Stacking)
+        if (hasComboGod && gameWorld.combo > 0) {
+            totalMultiplier *= (float) Math.pow(1f + comboGodBoostPerCombo, gameWorld.combo);
+        }
+
+        // 5. Bloodthirsty (Timed)
+        if (hasBloodthirsty) {
+            totalMultiplier *= bloodThirstyBoost;
+        }
+
+        // 6. Lucky Threes (Flat bonus)
+        int luckyThreesDamage = 0;
+        if (hasLuckyThrees) {
+            luckyThreesDamage = (attackCount % 3 == 0) ? luckyThreesDmgBonus : 0;
+        }
+
+        return (int)(baseDamage * totalMultiplier + luckyThreesDamage);
+    }
+
     // --- COLLISION CHECKS (Kept mostly as-is) ---
 
     private boolean checkCollision(float testX, float testY, GameWorld.TileType type, GameWorld gameWorld) {
@@ -767,7 +811,7 @@ public class Player {
             case ATTACK:
                 if (attackLevel < 7) {
                     attackLevel++;
-                    baseDamage += 10f;
+                    baseDamage += 4f;
                     damage = baseDamage;
 
                     baseLifesteal += 0.02f;
@@ -778,23 +822,23 @@ public class Player {
             case AGILITY:
                 if (agilityLevel < 7) {
                     agilityLevel++;
-                    baseSpeed += 8f;
+                    baseSpeed += 7.5f;
                     success = true;
                 }
                 break;
             case DEFENSE:
                 if (defenseLevel < 7) {
                     defenseLevel++;
-                    baseHP += 30f;
-                    currentHP += 30f;
-                    armor += 4f;
+                    baseHP += 20f;
+                    currentHP += 20f;
+                    armor += 3f;
                     success = true;
                 }
                 break;
             case LUCK:
                 if (luckLevel < 7) {
                     luckLevel++;
-                    luck += 0.08f;
+                    luck += 0.07f;
                     critChance = luck;
                     success = true;
                 }
@@ -802,7 +846,7 @@ public class Player {
             case SUPER:
                 if (superLevel < 7) {
                     superLevel++;
-                    baseEnergy -= 10;
+                    baseEnergy -= 6;
                     success = true;
                 }
                 break;

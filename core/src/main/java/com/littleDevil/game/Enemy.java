@@ -53,7 +53,7 @@ public abstract class Enemy {
     // Knockback
     protected float knockbackX = 0f, knockbackY = 0f;
     protected float knockbackDecay = 100f;
-    protected float knockbackStrength = 100f;
+    protected float knockbackStrength = 5f;
 
     // Pathfinding
     public Pathfinder pathfinder;
@@ -195,6 +195,56 @@ public abstract class Enemy {
             }
         }
         return closestIndex;
+    }
+
+    public boolean isHitBy(Player player) {
+        if (!player.isAttacking) {
+            hitThisAttack = false;
+            return false;
+        }
+        // If we already hit during this swing, don't hit again
+        if (hitThisAttack) return false;
+
+        float dx = x - player.x;
+        float dy = y - player.y;
+        float dist = (float)Math.sqrt(dx*dx + dy*dy);
+
+        if (dist > player.range) return false;
+
+        dx /= dist;
+        dy /= dist;
+
+        // The dot product check for the attack "cone"
+        float dot = dx * player.attackDirX + dy * player.attackDirY;
+        return dot > 0.3f;
+    }
+
+    public void applyStandardHitFeedback(GameWorld gameWorld, int damage, Color color, float scale) {
+        hitThisAttack = true;
+        hitFlashTime = hitFlashDuration;
+        gameWorld.spawnDamage(x, y + height / 1.5f, damage, color, scale);
+        gameWorld.combo += 1;
+        gameWorld.timeSinceLastHit = 0f;
+    }
+
+    public void onDeath(Player player, GameWorld gameWorld) {
+        if (!isAlive) return;
+        isAlive = false;
+
+        // 1. Basic World Updates
+        gameWorld.score += this.scoreValue;
+        gameWorld.spawnOrbs(this, player);
+
+        // 2. Global Player Buffs
+        if (player.hasBloodthirsty) {
+            player.bloodthirstyTimer = player.bloodthirstyDuration;
+            player.bloodThirstyBoost = 1.5f;
+        }
+
+        if (player.hasSlowGrowth) {
+            player.baseHP += player.slowGrowthBonus;
+            player.currentHP += player.slowGrowthBonus;
+        }
     }
 
     // Knocks the Enemy back

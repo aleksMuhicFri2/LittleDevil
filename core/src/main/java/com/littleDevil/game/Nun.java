@@ -65,6 +65,8 @@ public class Nun extends Enemy {
         this.scoreValue = stats.score;
         // ------------------------------------
 
+        this.knockbackDecay = 150f;
+
         guaranteedOrbsCounts = new float [] {3, 1, 0};
         firstExtraChances = new float [] {0.55f, 0.20f, 0.03f};
         orbProbabilityDecays = new float [] {0.35f, 0.40f, 0.40f};
@@ -187,98 +189,31 @@ public class Nun extends Enemy {
 
     @Override
     public void handleAttack(Player player, GameScreen gameScreen, GameWorld gameWorld) {
+        if (!isHitBy(player)) return;
 
-        if (!player.isAttacking) {
-            hitThisAttack = false;
-            return;
-        }
+        // 1. Setup Crit Visuals
+        boolean crit = Math.random() <= player.critChance;
+        Color textColor = crit ? new Color(0.8f, 0.4f, 0.2f, 1f) : new Color(1f, 0.2f, 0.2f, 1f);
+        float scale = crit ? 1.5f : 1.0f;
 
-        if (hitThisAttack) return;
+        // 2. Calculate and Apply Feedback
+        int damage = player.calculateAttackDamage(gameWorld, crit ? player.critMultiplier : 1.0f);
+        applyStandardHitFeedback(gameWorld, damage, textColor, scale);
 
-        float dx = x - player.x;
-        float dy = y - player.y;
-        float dist = (float)Math.sqrt(dx*dx + dy*dy);
-
-        if (dist > player.range) return;
-
-        dx /= dist;
-        dy /= dist;
-
-        float dot = player.attackDirX * dx + player.attackDirY * dy;
-        if (dot <= 0.3f) return;
-
-        hitFlashTime = hitFlashDuration;
-        hitThisAttack = true;
-
-        nunHit(dx, dy, player, gameScreen, gameWorld);
-    }
-
-    private void nunHit(float dx, float dy, Player player, GameScreen gameScreen, GameWorld gameWorld) {
-
-        applyHitKnockback(dx, dy);
+        // Effects
+        applyHitKnockback(x - player.x, y - player.y);
         playHitSound();
         gameScreen.triggerTimePause(0.1f, 0.15f);
 
-        float damageMultiplier = player.damageMultiplier;
-
-        boolean crit = Math.random() <= player.critChance;
-
-        Color textColor = new Color(1f, 0.2f, 0.2f, 1f);
-        float scale = 1f;
-
-        if (crit) {
-            damageMultiplier *= player.critMultiplier;
-            textColor.set(1f, 0.4f, 0.2f, 1f);
-            scale = 1.3f;
-        }
-
-        if (player.hasLastStand) {
-            damageMultiplier *= MathUtils.clamp(1f + (1f - (player.currentHP / player.baseHP)) / 0.75f, 1f, player.lastStandMaxBoost);
-        }
-
-        if (player.hasTheFlash) {
-            damageMultiplier *= player.currentFlashDamageBonus;
-        }
-        if (player.hasVampiric) {
-            damageMultiplier *= MathUtils.clamp(0.5f + (player.getNearestLightDistance() / 150f), 0.4f, 1.7f);
-        }
-        if (player.hasComboGod && gameWorld.combo > 0) {
-            damageMultiplier *= (float) Math.pow(1f + player.comboGodBoostPerCombo, gameWorld.combo);
-        }
-
-        int luckyThreesDamage = 0;
-        if (player.hasLuckyThrees) {
-            luckyThreesDamage = player.attackCount % 3 == 0 ? player.luckyThreesDmgBonus : 0;
-        }
-
-        int damage = (int)(player.damage * damageMultiplier * player.bloodThirstyBoost + luckyThreesDamage);
-
-        gameWorld.combo += 1;
-        gameWorld.timeSinceLastHit = 0f;
-        gameWorld.spawnDamage(x, y + height / 1.5f, damage, textColor, scale);
-
         HP -= damage;
-
         player.onDealDamage(damage);
 
-        if (HP <= 0 && isAlive) {
-            die(gameWorld, player);
-        }
+        if (HP <= 0) die(gameWorld, player);
     }
 
     private void die(GameWorld gameWorld, Player player) {
-        isAlive = false;
-
-        gameWorld.score += this.scoreValue;
-
-        currentFrame = flashFrame;
-        gameWorld.spawnOrbs(this, player);
-        player.bloodthirstyTimer = player.bloodthirstyDuration;
-        player.bloodThirstyBoost = 1.5f;
-        if (player.hasSlowGrowth) {
-            player.baseHP += player.slowGrowthBonus;
-            player.currentHP += player.slowGrowthBonus;
-        }
+        onDeath(player, gameWorld); // Handles score, orbs, and buffs
+        currentFrame = flashFrame;  // Nun-specific death frame
     }
 
     private void updateFacing(Player player) {

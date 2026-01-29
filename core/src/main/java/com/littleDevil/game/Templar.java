@@ -69,7 +69,7 @@ public class Templar extends Enemy {
         // Calculate derived stats
         this.BASH_SPEED = moveSpeed * 6f;
 
-        knockbackDecay = 150f;
+        knockbackDecay = 200f;
 
         hitboxOffsetX = -12;
         hitboxOffsetY = -16;
@@ -204,85 +204,57 @@ public class Templar extends Enemy {
     // Handles what happens when the enemy is hit
     @Override
     public void handleAttack(Player player, GameScreen gameScreen, GameWorld gameWorld) {
-        if (!player.isAttacking) hitThisAttack = false;
-        if (player.isAttacking && !hitThisAttack) {
-            float dx = x - player.x;
-            float dy = y - player.y;
-            float distance = (float)Math.sqrt(dx * dx + dy * dy);
-            if (distance <= player.range) {
-                dx /= distance;
-                dy /= distance;
-                float dot = player.attackDirX * dx + player.attackDirY * dy;
-                if (dot > 0.3f) {
-                    hitFlashTime = hitFlashDuration;
-                    hitThisAttack = true;
-                    boolean applyKnockbackFlag = state != TemplarState.CHANNELING && state != TemplarState.BASHING;
-                    templarHit(dx, dy, applyKnockbackFlag, 0.1f, 0.15f, player, gameScreen, gameWorld);
-                }
-            }
-        }
-    }
+        if (!isHitBy(player)) return;
 
-    // Applies damage suffered from player, spawns damageText and handles death if HP <= 0
-    private void templarHit(float dx, float dy, boolean applyKnockback, float freezeDuration, float cameraShakeDuration,
-                            Player player, GameScreen gameScreen, GameWorld gameWorld) {
-        if (applyKnockback) applyHitKnockback(dx, dy);
-        playHitSound();
-        gameScreen.triggerTimePause(freezeDuration, cameraShakeDuration);
-
-        float damageMultiplier = player.damageMultiplier;
-
-        // gets correct direction of templar
+        // 1. Templar-Specific Directional Logic
         boolean playerHitsFront = recentFacing ? player.x < x : player.x > x;
-
         boolean crit = Math.random() <= player.critChance;
-        Color textColor = new Color(1f, 0f, 0f, 1f);
-        float scale;
 
-        // If player hits shield
+        float specificMult = crit ? player.critMultiplier : 1.0f;
+        Color textColor = new Color(1f, 0f, 0f, 1f);
+        float scale = 1.0f;
+
         if (playerHitsFront) {
-            damageMultiplier *= 0.7f;
+            specificMult *= 0.6f; // Shield reduction
             textColor.set(0.8f, 0.8f, 1f, 1f);
-            scale = 1f;
-        } else { // If player hits from the back
-            damageMultiplier *= 1.3f;
-            textColor.set(1f, 0f, 0f, 1f);
+        } else {
+            specificMult *= 1.2f; // Backstab bonus
             scale = 1.15f;
         }
-        if (crit) { // Additional damage on crit
-            damageMultiplier *= player.critMultiplier;
-            textColor.set(1f, 0.4f, 0.2f, 1f);
-            scale = 1.3f;
+
+        if (crit) {
+            textColor.set(0.8f, 0.4f, 0.2f, 1f);
+            scale += 0.3f;
         }
 
-        if (player.hasLastStand) {
-            damageMultiplier *= MathUtils.clamp(1f + (1f - (player.currentHP / player.baseHP)) / 0.75f, 1f, player.lastStandMaxBoost);
+        // 2. Get Final Damage from Player Calculator
+        int damage = player.calculateAttackDamage(gameWorld, specificMult);
+
+        // 3. Feedback and Application
+        applyStandardHitFeedback(gameWorld, damage, textColor, scale);
+
+        // If not bashing/channeling, apply knockback
+        if (state != TemplarState.CHANNELING && state != TemplarState.BASHING) {
+            applyHitKnockback(x - player.x, y - player.y);
         }
 
-        if (player.hasTheFlash) {
-            damageMultiplier *= player.currentFlashDamageBonus;
-        }
-        if (player.hasVampiric) {
-            damageMultiplier *= MathUtils.clamp(0.5f + (player.getNearestLightDistance() / 150f), 0.4f, 1.7f);
-        }
-        if (player.hasComboGod && gameWorld.combo > 0) {
-            damageMultiplier *= (float) Math.pow(1f + player.comboGodBoostPerCombo, gameWorld.combo);
-        }
+        playHitSound();
+        gameScreen.triggerTimePause(0.1f, 0.15f);
 
-        int luckyThreesDamage = 0;
-        if (player.hasLuckyThrees) {
-            luckyThreesDamage = player.attackCount % 3 == 0 ? player.luckyThreesDmgBonus : 0;
-        }
-
-        int damage = (int)(player.damage * damageMultiplier * player.bloodThirstyBoost + luckyThreesDamage);
-
-        gameWorld.combo += 1;
-        gameWorld.timeSinceLastHit = 0f;
-
-        gameWorld.spawnDamage(x, y + height / 1.5f, damage, textColor, scale);
         HP -= damage;
         player.onDealDamage(damage);
-        if (HP <= 0 && isAlive) die(gameWorld, player);
+
+        if (HP <= 0) die(gameWorld, player);
+    }
+
+    private void die(GameWorld gameWorld, Player player) {
+        onDeath(player, gameWorld); // Global stuff
+
+        // Templar-specific death animation setup
+        currentFrame = templarFrames[3];
+        currentShieldFrame = shieldFrames[8];
+        helmetY = y;
+        helmetVelocity = 10f;
     }
 
     // Handles event when templar hits player with shield
@@ -386,27 +358,5 @@ public class Templar extends Enemy {
         batch.setColor(1f, 1f, 0f, 0.3f);
         batch.draw(pixel, hitboxX, hitboxY, shieldHitWidth, shieldHitHeight);
         batch.setColor(Color.WHITE);
-    }
-
-    // Function that handles templar death and removal from scene
-    private void die(GameWorld gameWorld, Player player) {
-        if (!isAlive) return;
-        isAlive = false;
-
-        gameWorld.score += this.scoreValue;
-
-        currentFrame = templarFrames[3];
-        currentShieldFrame = shieldFrames[8];
-
-        helmetY = y;
-        helmetVelocity = 10f;
-        gameWorld.spawnOrbs(this, player);
-
-        player.bloodthirstyTimer = player.bloodthirstyDuration;
-        player.bloodThirstyBoost = 1.5f;
-        if (player.hasSlowGrowth) {
-            player.baseHP += player.slowGrowthBonus;
-            player.currentHP += player.slowGrowthBonus;
-        }
     }
 }
