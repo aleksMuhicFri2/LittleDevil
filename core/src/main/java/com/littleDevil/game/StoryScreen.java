@@ -25,8 +25,8 @@ public class StoryScreen implements Screen {
     // Viewport & camera
     private OrthographicCamera camera;
     private Viewport viewport;
-    private final float WORLD_WIDTH = 800;
-    private final float WORLD_HEIGHT = 480;
+    private final float WORLD_WIDTH = 1920;
+    private final float WORLD_HEIGHT = 1080;
 
     // Music
     private Music storyMusic;
@@ -39,11 +39,11 @@ public class StoryScreen implements Screen {
     private float charTimer = 0f;
 
     // Typewriter delays
-    private final float charDelay = 0.055f;
-    private final float newlinePause = 0.5f;
+    private final float charDelay = 0.035f;
+    private final float newlinePause = 0.25f;
     private float partIdle = 0.5f;
     private final float partFade = 0.5f;
-    private final float partBlack = 0.5f;
+    private final float partBlack = 0.3f;
 
     // Typewriter states
     private enum State { TYPING, NEWLINE_PAUSE, PART_IDLE, PART_FADE, PART_BLACK }

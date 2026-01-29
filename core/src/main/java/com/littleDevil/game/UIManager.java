@@ -66,9 +66,9 @@ public class UIManager {
     private final float CARD_H = 64f * CARD_SCALE;
     private final float CARD_SPACING = 500f;
 
-    private final float SLOT_SIZE = 40f;
-    private final float SLOT_VISIBLE_Y = 15f;
-    private final float SLOT_SPACING = 29f;
+    private final float SLOT_SIZE = 80f;
+    private final float SLOT_VISIBLE_Y = 18f;
+    private final float SLOT_SPACING = 49f;
 
     private float[] augmentCardScales = {1f, 1f, 1f};
     private final float HOVER_SCALE = 1.2f;
@@ -108,7 +108,7 @@ public class UIManager {
         this.tutorialFont = tutorialFont;
 
         this.tooltipFont = new BitmapFont();
-        this.tooltipFont.getData().setScale(0.8f);
+        this.tooltipFont.getData().setScale(2f);
 
         this.tutorialManager = new TutorialManager(world, tutorialFont);
 
@@ -343,15 +343,31 @@ public class UIManager {
 
     private void drawTooltip(Augment aug, float x, float y) {
         String text = aug.name + "\n" + aug.description;
-        tooltipFont.getData().setScale(0.8f);
+
+        // Ensure scale is set before measuring layout
+        tooltipFont.getData().setScale(2f);
         layout.setText(tooltipFont, text);
-        float w = layout.width + 20f;
-        float h = layout.height + 20f;
+
+        // Increase padding for the background box
+        float padding = 30f;
+        float w = layout.width + padding;
+        float h = layout.height + padding;
+
+        // Draw dark background box (slotBorder)
         batch.setColor(0f, 0f, 0f, 0.95f);
+        // Draw centered above the icon
         batch.draw(slotBorder, x - w/2f, y, w, h);
+
+        // Draw Text
         batch.setColor(1f, 1f, 1f, 1f);
         tooltipFont.setColor(Color.YELLOW);
-        tooltipFont.draw(batch, text, x - layout.width/2f, y + h - 10f);
+
+        // Position text precisely within the box
+        float textX = x - layout.width / 2f;
+        float textY = y + h - (padding / 2f);
+
+        tooltipFont.draw(batch, text, textX, textY);
+
         tooltipFont.setColor(Color.WHITE);
     }
 

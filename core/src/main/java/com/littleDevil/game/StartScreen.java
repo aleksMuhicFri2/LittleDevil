@@ -335,7 +335,7 @@ public class StartScreen implements Screen {
                     Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
                     boolean storySeen = prefs.getBoolean("storySeen", false);
 
-                    if (storySeen) {
+                    if (!storySeen) { // fix this after
                         game.setScreen(new GameScreen(game));
                     } else {
                         game.setScreen(new StoryScreen(game, StoryData.STORY_PARTS));

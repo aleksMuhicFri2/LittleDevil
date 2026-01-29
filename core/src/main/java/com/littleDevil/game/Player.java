@@ -548,8 +548,8 @@ public class Player {
     }
 
     private void applyPassiveLevelUpStats() {
-        baseHP += 7.5f;
-        currentHP += 7.5f;
+        baseHP += 5f;
+        currentHP += 5f;
         armor += 1f;
 
         baseSpeed += 2.0f;

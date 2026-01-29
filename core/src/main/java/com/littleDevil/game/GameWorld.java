@@ -187,7 +187,7 @@ public class GameWorld {
         // Damage Font init
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
-        param.size = (int)(Gdx.graphics.getHeight() * 0.022f);
+        param.size = (int)(mapHeight * 0.03f);
         param.color = Color.WHITE;
         damageFont = generator.generateFont(param);
         generator.dispose();
