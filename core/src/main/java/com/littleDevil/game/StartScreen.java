@@ -127,7 +127,7 @@ public class StartScreen implements Screen {
         // Load and loop intro music
         introMusic = Gdx.audio.newMusic(Gdx.files.internal("Sounds/introBackgroundMusic.mp3"));
         introMusic.setLooping(true);
-        introMusic.setVolume(0.3f);
+        introMusic.setVolume(0.2f);
         introMusic.play();
 
         // Particle spritesheet
@@ -181,19 +181,19 @@ public class StartScreen implements Screen {
 
                 if (lessDiffButton.contains(tx, ty)) {
                     currentDifficulty = (currentDifficulty + difficulties.length - 1) % difficulties.length;
-                    difficultySound.play(0.6f);
+                    difficultySound.play(0.75f);
                     prefs.putInteger("difficulty", currentDifficulty);
                     prefs.flush();
                 } else if (moreDiffButton.contains(tx, ty)) {
                     currentDifficulty = (currentDifficulty + 1) % difficulties.length;
-                    difficultySound.play(0.6f);
+                    difficultySound.play(0.75f);
                     prefs.putInteger("difficulty", currentDifficulty);
                     prefs.flush();
                 } else if (playButton.contains(tx, ty)) {
                     playPressed = true;
                     candleLeft.extinguish();
                     candleRight.extinguish();
-                    playSound.play(0.2f);
+                    playSound.play(0.1f);
                     introMusic.stop();
                 }
                 return true;

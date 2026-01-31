@@ -26,7 +26,7 @@ public class Player {
     public float baseHP = 200f, currentHP = baseHP;
     public float baseEnergy = 100f, currentEnergy = 0f;
     public float armor = 10f;
-    public float baseSpeed = 50f, speed = baseSpeed;
+    public float baseSpeed = 70f, speed = baseSpeed;
     public float baseDamage = 60f, damage = baseDamage;
     public float luck = 0.05f, critChance = luck, critMultiplier = 1.5f;
 
@@ -55,7 +55,7 @@ public class Player {
 
     // Dash Logic
     private float dashTime = 0f;
-    private final float dashDuration = 0.3f, dashCooldown = 0.8f;
+    private final float dashDuration = 0.25f, dashCooldown = 0.8f;
     private float dashTimer = 0f;
     private final float dashSpeed;
     private float dashDirX = 0, dashDirY = 0;
@@ -822,7 +822,7 @@ public class Player {
             case AGILITY:
                 if (agilityLevel < 7) {
                     agilityLevel++;
-                    baseSpeed += 7.5f;
+                    baseSpeed += 5f;
                     success = true;
                 }
                 break;

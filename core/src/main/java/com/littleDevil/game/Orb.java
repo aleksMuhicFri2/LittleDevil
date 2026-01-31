@@ -20,9 +20,9 @@ public class Orb {
     public OrbType type;
     public boolean isPulled = false;
 
-    private final float PULL_RADIUS = 20f;
-    private final float PULL_SPEED = 14f;
-    private final float MAX_PULL_SPEED = 250f;
+    private final float PULL_RADIUS = 35f;
+    private final float PULL_SPEED = 20f;
+    private final float MAX_PULL_SPEED = 350f;
     private final float MAX_RANGE;
     private final float ORB_SPEED;
 
@@ -30,7 +30,7 @@ public class Orb {
     private TextureRegion currentFrame;
 
     private float spawnTime;
-    private final float PULL_DELAY = 0.3f;
+    private final float PULL_DELAY = 0.5f;
 
     private Random rand = new Random();
 

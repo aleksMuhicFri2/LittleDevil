@@ -53,7 +53,7 @@ public class BigAltar {
         if (onAltar) {
             // Opening Animation
             if (frameIndex < totalFrames - 1) {
-                if (frameIndex == 0) candleLightSound.play(0.3f); // Play sound once on start
+                if (frameIndex == 0) candleLightSound.play(0.12f); // Play sound once on start
                 frameIndex++;
             }
         } else {

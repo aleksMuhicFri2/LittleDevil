@@ -167,6 +167,15 @@ public class GameScreen implements Screen {
 
     @Override
     public void render(float delta) {
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.P)) {
+            if (backgroundMusic.isPlaying()) {
+                backgroundMusic.pause();
+            } else {
+                backgroundMusic.play();
+            }
+        }
+
         if (timePaused) delta = 0f;
         float worldDelta = timePaused ? 0f : delta;
 
