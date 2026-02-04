@@ -120,7 +120,7 @@ public class Player {
     public int luckyThreesDmgBonus = (int)(baseDamage * 0.3f);
     public int luckyThreesHeal = (int)(baseDamage * 0.15f);
 
-    public int veteranBoost = 5;
+    public int veteranBoost = 4;
     public int veteranStacks = 0;
     public float veteranTimer = 0f;
     public final int MAX_VETERAN_STACKS = 10;
@@ -129,20 +129,20 @@ public class Player {
     public int slowGrowthBonus = 4;
 
     public float flashTimer = 0f;
-    public float maxFlashTime = 8f; // Changed to 8 seconds as requested
+    public float maxFlashTime = 6f;
     public float currentFlashDamageBonus = 1f;
 
     public int nearbyEnemies = 0;
-    public float nearbyDistance = 60f;
-    public float scaredyCatBoostPerEnemy = 20f;
+    public float nearbyDistance = 50f;
+    public float scaredyCatBoostPerEnemy = 15f;
 
-    public float lastStandMaxBoost = 2f;
-    public float lastStandMaxLifesteal = 0.2f;
+    public float lastStandMaxBoost = 1.3f;
+    public float lastStandMaxLifesteal = 0.1f;
 
-    public float boostedAnimalBoostPermanent = 0.2f;
+    public float boostedAnimalBoostPermanent = 0.1f;
     public float boostedAnimalBoostLength = 15f;
 
-    public float comboGodBoostPerCombo = 0.07f;
+    public float comboGodBoostPerCombo = 0.03f;
 
     private final float[][] LIGHT_POSITIONS = {
         {122f, 204f}, // LightCenterLeft
@@ -814,7 +814,7 @@ public class Player {
                     baseDamage += 4f;
                     damage = baseDamage;
 
-                    baseLifesteal += 0.02f;
+                    baseLifesteal += 0.01f;
                     lifesteal = baseLifesteal;
                     success = true;
                 }
@@ -838,7 +838,7 @@ public class Player {
             case LUCK:
                 if (luckLevel < 7) {
                     luckLevel++;
-                    luck += 0.07f;
+                    luck += 0.05f;
                     critChance = luck;
                     success = true;
                 }

@@ -184,7 +184,7 @@ public class UIManager {
 
         drawAugmentSlots();
 
-        tutorialFont.getData().setScale(1.5f);
+        tutorialFont.getData().setScale(2f);
         tutorialManager.render(batch, viewport.getWorldWidth(), viewport.getWorldHeight());
         tutorialFont.getData().setScale(1.0f);
 
@@ -495,7 +495,7 @@ public class UIManager {
     private void drawWavePanel() {
         float base = 64f;
         // INCREASED: from 3f to 5f
-        float scale = getScale(5f);
+        float scale = getScale(6f);
         float w = base * scale;
         float h = base * scale;
 
@@ -514,7 +514,7 @@ public class UIManager {
         float vw = waveLayout.width;
         float total = lw + 10f + vw;
         float x = (viewport.getWorldWidth() - total) / 2f;
-        float y = viewport.getWorldHeight() - 85f;
+        float y = viewport.getWorldHeight() - 105f;
         waveFont.draw(batch, label, x, y);
         waveFont.draw(batch, value, x + lw + 10f, y);
     }

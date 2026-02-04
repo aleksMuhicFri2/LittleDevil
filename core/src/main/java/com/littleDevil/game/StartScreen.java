@@ -331,7 +331,7 @@ public class StartScreen implements Screen {
                 batch.draw(backgroundTexture, 0, 0, screenW, screenH);
                 batch.setColor(Color.WHITE);
 
-                if (fadeAlpha >= 1f) {
+                if (fadeAlpha >= 1f) { // set to ! if testing
                     Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
                     boolean storySeen = prefs.getBoolean("storySeen", false);
 
@@ -357,10 +357,14 @@ public class StartScreen implements Screen {
     }
 
     private void checkMousePos() {
-        Vector3 mousePos = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
-        camera.unproject(mousePos);
-        mouseX = mousePos.x;
-        mouseY = mousePos.y;
+        if (Gdx.input.getX() >= 0 && Gdx.input.getX() <= Gdx.graphics.getWidth() &&
+            Gdx.input.getY() >= 0 && Gdx.input.getY() <= Gdx.graphics.getHeight()) {
+
+            Vector3 mousePos = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
+            camera.unproject(mousePos);
+            mouseX = mousePos.x;
+            mouseY = mousePos.y;
+        }
     }
 
     @Override
@@ -368,8 +372,16 @@ public class StartScreen implements Screen {
         viewport.update(width, height);
     }
 
-    @Override public void pause() {}
-    @Override public void resume() {}
+    @Override public void pause() {
+        if (introMusic != null && introMusic.isPlaying()) {
+            introMusic.pause();
+        }
+    }
+    @Override public void resume() {
+        if (introMusic != null && !introMusic.isPlaying() && !playPressed) {
+            introMusic.play();
+        }
+    }
     @Override public void hide() {
         Gdx.input.setInputProcessor(null);
     }

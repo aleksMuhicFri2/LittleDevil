@@ -48,38 +48,25 @@ public class GameWorld {
     public Sound waveSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/deathBellSound.mp3"));
 
     public float nextWaveTimer = 0f;
-    public float TIME_BETWEEN_WAVES = 10f;
+    public float TIME_BETWEEN_WAVES = 5f;
     public boolean waitingForNextWave = false;
 
-    private float statPrintTimer = 0f;
+    //private float statPrintTimer = 0f;
 
-    // --- NEW INDEPENDENT SPAWN SYSTEM ---
-    // Spawn Intervals
-    private final float TEMPLAR_SPAWN_INTERVAL = 5f;
-    private final float NUN_SPAWN_INTERVAL = 12f;
-    private final float PRIEST_SPAWN_INTERVAL = 20f;
-
-    // Timers
-    private float templarTimer = 0f;
-    private float nunTimer = 0f;
-    private float priestTimer = 0f;
-
-    // Remaining count for current wave
-    private int templarsToSpawn = 0;
-    private int nunsToSpawn = 0;
-    private int priestsToSpawn = 0;
-    // ------------------------------------
+    // --- NEW SPAWNER ---
+    // All individual timers and counters have been moved to Spawner.java
+    public Spawner spawner;
+    // -------------------
 
     public boolean basicTutorialDone = false;
 
     public AugmentManager augmentManager;
-    // Flag to track if the player has reached a milestone level and needs to pick an augment
     public int pendingAugments = 0;
 
     // Candle Decorations
     private Texture candleSheet;
 
-    // NEW: Loaded once to save performance
+    // Assets
     private Texture orbSheet;
     private Sound orbPickupSound;
 
@@ -89,7 +76,7 @@ public class GameWorld {
     public Texture healingTexture = new Texture("Spritesheets/healingAnimation.png");
 
     // Pathing
-    private final float PATH_UPDATE_INTERVAL = 1f; // 1 update per second (BASE)
+    private final float PATH_UPDATE_INTERVAL = 1f;
 
     // Tile Types
     public enum TileType { BLOCK, STAIRS, ALTAR, BOOST, BLOCKENEMY }
@@ -98,7 +85,6 @@ public class GameWorld {
     public ArrayList<DamageText> damageTexts = new ArrayList<>();
     public BitmapFont damageFont;
 
-    // For easier removing from the scene
     private final List<Enemy> enemiesToRemove = new ArrayList<>();
 
     public List<Orb> orbs = new ArrayList<>();
@@ -106,17 +92,11 @@ public class GameWorld {
     public List<Explosion> explosions = new ArrayList<>();
     public ArrayList<HealingAnimation> healAnimations = new ArrayList<>();
 
-    public enum EnemyType {
-        TEMPLAR,
-        NUN,
-        PRIEST
-    }
+    public enum EnemyType { TEMPLAR, NUN, PRIEST }
 
-    // Public UI info to be displayed on screen
     public float score = 0f;
-    public int wave = 1; // Default to 1
+    public int wave = 1;
     public int combo = 0;
-
     public boolean gameWon = false;
 
     Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
@@ -156,6 +136,8 @@ public class GameWorld {
         // Wait for trigger from tutorial
         waitingForNextWave = false;
         canStartNextWave = false;
+
+        spawner = new Spawner(this);
 
         // Altars
         bigAltar = new BigAltar(262, 200, "Spritesheets/bigAltarSpritesheet.png");
@@ -232,8 +214,10 @@ public class GameWorld {
 
         player.update(delta, this);
 
-        // 4. Process Spawn Logic (Independent Timers)
+        // 4. Process Spawn Logic (DELEGATED TO SPAWNER)
         if (waveActive && !player.isOnAltar(this)) {
+
+            // Score logic (kept here or moved to spawner, up to you)
             passiveScoreTimer += delta;
             if (passiveScoreTimer >= 1f) {
                 passiveScoreTimer = 0f;
@@ -241,35 +225,8 @@ public class GameWorld {
                 score += PASSIVE_SCORE_RATES[diffIndex];
             }
 
-            // Templar Spawning (5s)
-            if (templarsToSpawn > 0) {
-                templarTimer += delta;
-                if (templarTimer >= TEMPLAR_SPAWN_INTERVAL) {
-                    templarTimer = 0f;
-                    spawnEnemy(EnemyType.TEMPLAR);
-                    templarsToSpawn--;
-                }
-            }
-
-            // Nun Spawning (12s)
-            if (nunsToSpawn > 0) {
-                nunTimer += delta;
-                if (nunTimer >= NUN_SPAWN_INTERVAL) {
-                    nunTimer = 0f;
-                    spawnEnemy(EnemyType.NUN);
-                    nunsToSpawn--;
-                }
-            }
-
-            // Priest Spawning (20s)
-            if (priestsToSpawn > 0) {
-                priestTimer += delta;
-                if (priestTimer >= PRIEST_SPAWN_INTERVAL) {
-                    priestTimer = 0f;
-                    spawnEnemy(EnemyType.PRIEST);
-                    priestsToSpawn--;
-                }
-            }
+            // UPDATE SPAWNER
+            spawner.update(delta);
         }
 
         // 5. Wave Cooldown Logic
@@ -308,8 +265,10 @@ public class GameWorld {
             enemiesToRemove.clear();
         }
 
-        // End wave check
-        if (waveActive && templarsToSpawn == 0 && nunsToSpawn == 0 && priestsToSpawn == 0 && enemies.isEmpty()) {
+        if (waveActive &&
+            spawner.isSpawningFinished() &&
+            enemies.isEmpty()) {
+
             endWave();
         }
 
@@ -416,6 +375,10 @@ public class GameWorld {
             orb.render(batch);
         }
         for (Explosion e : explosions) e.render(batch);
+    }
+
+    public List<CollisionObject> getObjects() {
+        return objects;
     }
 
     // Adds a CollisionObject to the objects array of the GameWorld
@@ -554,71 +517,6 @@ public class GameWorld {
         int baseY = (int)(entityY - height / 2f);
 
         return new RenderEntity(region, drawX, drawY, width, height, baseY, alpha);
-    }
-
-    public void spawnEnemy(EnemyType type) {
-        float enemyWidth = 32f;
-        float enemyHeight = 32f;
-
-        float spawnX = 0;
-        float spawnY = 0;
-        boolean valid = false;
-
-        // Try up to 10 times to find a valid one of the 4 spots
-        for (int i = 0; i < 10; i++) {
-
-            // Pick a side: 0=top, 1=bottom, 2=left, 3=right
-            int side = MathUtils.random(3);
-
-            switch (side) {
-                case 0 -> { // Top center
-                    spawnX = mapWidth / 2f;
-                    spawnY = mapHeight - enemyHeight;
-                }
-                case 1 -> { // Bottom center
-                    spawnX = mapWidth / 2f;
-                    spawnY = enemyHeight;
-                }
-                case 2 -> { // Left center
-                    spawnX = enemyWidth;
-                    spawnY = mapHeight / 2f;
-                }
-                case 3 -> { // Right center
-                    spawnX = mapWidth - enemyWidth;
-                    spawnY = mapHeight / 2f;
-                }
-            }
-
-            // Check collision
-            boolean blocked = false;
-            for (CollisionObject obj : objects) {
-                if (spawnX + enemyWidth > obj.posX && spawnX - enemyWidth / 2f < obj.posX + obj.width &&
-                    spawnY + enemyHeight > obj.posY && spawnY - enemyHeight / 2f < obj.posY + obj.height) {
-                    blocked = true;
-                    break;
-                }
-            }
-
-            if (!blocked) {
-                valid = true;
-                break; // Found a spot, exit loop
-            }
-        }
-
-        // If we failed 10 times, force spawn at the last calculated position
-        if (!valid) {
-            System.out.println("Warning: Forced spawn for " + type);
-        }
-
-        Enemy newEnemy;
-        switch (type) {
-            case TEMPLAR -> newEnemy = new Templar(spawnX, spawnY, this);
-            case NUN -> newEnemy = new Nun(spawnX, spawnY, this);
-            case PRIEST -> newEnemy = new ExplodingPriest(spawnX, spawnY, this);
-            default -> newEnemy = new Templar(spawnX, spawnY, this);
-        }
-
-        enemies.add(newEnemy);
     }
 
 
@@ -760,18 +658,8 @@ public class GameWorld {
         int index = Math.min(wave - 1, WaveManager.waves.length - 1);
         Wave w = WaveManager.waves[index];
 
-        // --- NEW SPAWN SETUP ---
-        // Load the counts for this specific wave
-        templarsToSpawn = w.templars;
-        nunsToSpawn = w.nuns;
-        priestsToSpawn = w.priests;
-
-        // Reset timers.
-        // We set them to the INTERVAL so the first batch spawns immediately upon wave start,
-        // rather than making the player wait 5-20 seconds for the first enemy.
-        templarTimer = TEMPLAR_SPAWN_INTERVAL;
-        nunTimer = NUN_SPAWN_INTERVAL;
-        priestTimer = PRIEST_SPAWN_INTERVAL;
+        // NEW: Tell Spawner to start
+        spawner.startWave(wave, w);
     }
 
     public void endWave() {

@@ -259,7 +259,7 @@ public class Templar extends Enemy {
 
     // Handles event when templar hits player with shield
     private void checkBashHit(Player player, GameScreen gameScreen) {
-        if (state != TemplarState.BASHING || hitPlayerThisBash) return;
+        if (state != TemplarState.BASHING || hitPlayerThisBash || player.isDashing) return;
 
         float offsetX = recentFacing ? -5f : 5f;
         float centerX = x + offsetX;

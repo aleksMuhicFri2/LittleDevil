@@ -87,7 +87,7 @@ public class GameScreen implements Screen {
         param.color = new Color(0.85f, 0.85f, 0.85f, 0.5f);
         scoreFont = generator.generateFont(param);
 
-        param.size = (int)(VIRTUAL_HEIGHT * 0.05f);
+        param.size = (int)(VIRTUAL_HEIGHT * 0.06f);
         param.color = new Color(0f, 0f, 0f, 1f);
         param.borderWidth = 0.5f;
         waveFont = generator.generateFont(param);

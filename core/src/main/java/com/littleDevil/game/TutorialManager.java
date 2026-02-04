@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Align;
 
 public class TutorialManager {
@@ -20,6 +21,8 @@ public class TutorialManager {
     // Textures
     private final Texture popupBackground;
     private final Texture iconBackground;
+
+    private float animationTimer = 0f;
 
     public enum TutorialStep {
         MOVEMENT("Use WASD to Move"),
@@ -73,6 +76,9 @@ public class TutorialManager {
     }
 
     public void update(float delta) {
+
+        animationTimer += delta;
+
         // 1. UPDATE GLOBAL LOCK
         if (currentStep.ordinal() > TutorialStep.DASH.ordinal()) {
             gameWorld.basicTutorialDone = true;
@@ -157,47 +163,53 @@ public class TutorialManager {
         String text = currentStep.text;
         if (text.isEmpty()) return;
 
-        // 1. SMALLER FONT SCALE
-        // Reducing from 1.0f to 0.7f or 0.8f for a more compact look
         font.getData().setScale(0.75f);
 
-        // 2. SMALLER DYNAMIC BOX
-        // We tighten the max width so the box is more "vertical" and compact
-        float maxTextWidth = 300f; // Reduced from 400f
+        float maxTextWidth = 300f;
         layout.setText(font, text, Color.WHITE, maxTextWidth, Align.center, true);
 
-        // Reduced padding for a smaller footprint
-        float dynamicPadding = 25f; // Reduced from 40f
+        float dynamicPadding = 25f;
         float dynamicBoxW = layout.width + (dynamicPadding * 2);
         float dynamicBoxH = layout.height + (dynamicPadding * 2);
 
-        // 3. MOVE DOWN AND RIGHT
-        // Move Right: Margin reduced from 60f to 30f
         float x = screenWidth - dynamicBoxW - 30f;
-
-        // Move Down: Changed from 0.7f (70%) to 0.5f (50%) to place it near the vertical center
         float y = screenHeight * 0.5f;
 
-        // 4. DRAW BACKGROUND
         batch.setColor(1f, 1f, 1f, 1f);
         batch.draw(popupBackground, x, y, dynamicBoxW, dynamicBoxH);
 
-        // 5. DRAW CIRCLE ICON (Scaled down slightly)
-        float iconSize = 38f; // Reduced from 48f
-        float iconX = x + dynamicBoxW - iconSize / 2f;
-        float iconY = y + dynamicBoxH - iconSize / 2f;
-        batch.draw(iconBackground, iconX, iconY, iconSize, iconSize);
+        // --- 5. FIXED PULSING MATH ---
+        // Speed: * 5f (Faster)
+        // Strength: * 0.2f (+/- 20% size change)
+        float pulse = 1f + MathUtils.sin(animationTimer * 6f) * 0.1f;
 
-        // 6. DRAW "!"
-        // Calculate "!" position specifically
+        float baseIconSize = 60f;
+        float currentIconSize = baseIconSize * pulse;
+
+        float centerX = x + dynamicBoxW;
+        float centerY = y + dynamicBoxH;
+
+        batch.draw(iconBackground,
+            centerX - currentIconSize / 2f,
+            centerY - currentIconSize / 2f,
+            currentIconSize, currentIconSize
+        );
+
+        // --- 6. DRAW PULSING "!" ---
+        font.getData().setScale(1.2f * pulse);
         GlyphLayout bangLayout = new GlyphLayout(font, "!");
-        font.draw(batch, "!", iconX + (iconSize - bangLayout.width)/2f, iconY + (iconSize + bangLayout.height)/2f);
 
-        // 7. DRAW MAIN TEXT
+        float bangX = centerX - bangLayout.width / 2f;
+        float bangY = centerY + bangLayout.height / 2f;
+
+        font.draw(batch, "!", bangX, bangY);
+
+        // --- 7. DRAW MAIN TEXT ---
+        font.getData().setScale(0.75f);
+
         float textY = y + (dynamicBoxH + layout.height) / 2f;
         font.draw(batch, text, x + dynamicPadding, textY, layout.width, Align.center, true);
 
-        // RESET scale so it doesn't break other UI fonts
         font.getData().setScale(1.0f);
     }
 
