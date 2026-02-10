@@ -108,17 +108,14 @@ public class AugmentManager {
         }
     }
 
-    // =================================================================
     //                STAT APPLICATION & FLAG SETTING
-    // =================================================================
-
     private void activateAugmentOnPlayer(Augment aug) {
         switch (aug.id) {
             // ATTACK
             case "VAMPIRIC":
                 player.hasVampiric = true; // Set flag
                 // Apply immediate stats
-                player.baseLifesteal += 0.15f;
+                player.baseLifesteal += 0.05f;
                 player.lifesteal = player.baseLifesteal;
                 break;
 
@@ -167,11 +164,11 @@ public class AugmentManager {
             case "SLOW_DANGEROUS":
                 player.hasSlowDangerous = true;
                 // Immediate stat change
-                int diff = (int)(player.baseSpeed * 0.5f);
+                int diff = (int)(player.baseSpeed * 0.4f);
                 player.baseSpeed *= 0.7f;
                 player.speed = player.baseSpeed;
 
-                player.baseDamage += 20f + diff;
+                player.baseDamage += diff;
                 player.damage = player.baseDamage;
                 break;
 
@@ -201,8 +198,6 @@ public class AugmentManager {
                 break;
         }
     }
-
-    public boolean hasSpace() { return slotsFilled < 5; }
 
     public TextureRegion getIcon(int index) {
         if (index < 0 || index >= augmentIcons.length) return null;

@@ -125,7 +125,7 @@ public class Player {
     public int luckyThreesDmgBonus = (int)(baseDamage * 0.3f);
     public int luckyThreesHeal = (int)(baseDamage * 0.15f);
 
-    public int veteranBoost = 4;
+    public int veteranBoost = 2;
     public int veteranStacks = 0;
     public float veteranTimer = 0f;
     public final int MAX_VETERAN_STACKS = 10;

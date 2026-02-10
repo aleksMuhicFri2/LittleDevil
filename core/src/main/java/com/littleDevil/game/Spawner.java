@@ -45,27 +45,29 @@ public class Spawner {
         this.nunsRemaining = waveData.nuns;
         this.priestsRemaining = waveData.priests;
 
-        float baseDuration = 20f + (waveNumber * 5f);
-
-        // Apply Difficulty Multiplier:
-        // Easy (1.5) -> Duration becomes longer -> Intervals become larger -> Spawns happen slower.
-        // Hard (0.7) -> Duration becomes shorter -> Intervals become smaller -> Spawns happen faster.
+        float baseDuration = 15f + (waveNumber * 4f);
         float targetWaveDuration = baseDuration * difficulty.multiplier;
 
+        // Calculate intervals
         if (templarsRemaining > 0) {
             templarInterval = targetWaveDuration / templarsRemaining;
-            templarTimer = 0f;
+            // FIX: Set timer TO the interval so it spawns immediately
+            templarTimer = templarInterval;
         }
 
         if (nunsRemaining > 0) {
             nunInterval = targetWaveDuration / nunsRemaining;
-            nunTimer = 0f;
+            // FIX: Set timer TO the interval
+            nunTimer = nunInterval;
         }
 
         if (priestsRemaining > 0) {
             priestInterval = targetWaveDuration / priestsRemaining;
-            priestTimer = 0f;
+            // FIX: Set timer TO the interval
+            priestTimer = priestInterval;
         }
+
+        System.out.println("Wave " + waveNumber + " Started (" + difficulty + ")");
     }
 
     public void update(float delta) {

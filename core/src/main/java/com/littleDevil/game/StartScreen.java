@@ -91,6 +91,11 @@ public class StartScreen implements Screen {
     private final Color whiteColor = new Color(1f, 1f, 1f, 1f);   // White
     private final Color currentHighscoreColor = new Color();
 
+    // --- NEW: Completion Display ---
+    private boolean isCurrentDifficultyCompleted = false;
+    private float completionPulseTimer = 0f;
+    private final Color completionGold = new Color(1f, 0.84f, 0.0f, 1f); // Gold
+
     public StartScreen(Main game) {
         this.game = game;
     }
@@ -104,6 +109,7 @@ public class StartScreen implements Screen {
 
         Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
         currentDifficulty = prefs.getInteger("difficulty", 0);
+        checkCompletionStatus(); // Check immediately on load
 
         highscoreVal = prefs.getInteger("highscore", 0);
 
@@ -166,12 +172,8 @@ public class StartScreen implements Screen {
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-                // --- CHANGE 2: INPUT LOCKING ---
-                // If the transition has started, ignore ALL clicks immediately.
                 if (playPressed) return false;
-                // -------------------------------
 
-                // Convert screen coordinates to world coordinates
                 Vector3 touchPos = new Vector3(screenX, screenY, 0);
                 camera.unproject(touchPos);
                 float tx = touchPos.x;
@@ -184,11 +186,13 @@ public class StartScreen implements Screen {
                     difficultySound.play(0.75f);
                     prefs.putInteger("difficulty", currentDifficulty);
                     prefs.flush();
+                    checkCompletionStatus(); // Check new difficulty status
                 } else if (moreDiffButton.contains(tx, ty)) {
                     currentDifficulty = (currentDifficulty + 1) % difficulties.length;
                     difficultySound.play(0.75f);
                     prefs.putInteger("difficulty", currentDifficulty);
                     prefs.flush();
+                    checkCompletionStatus(); // Check new difficulty status
                 } else if (playButton.contains(tx, ty)) {
                     playPressed = true;
                     candleLeft.extinguish();
@@ -199,6 +203,12 @@ public class StartScreen implements Screen {
                 return true;
             }
         });
+    }
+
+    private void checkCompletionStatus() {
+        Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
+        String key = "difficulty_" + currentDifficulty + "_completed";
+        isCurrentDifficultyCompleted = prefs.getBoolean(key, false);
     }
 
     @Override
@@ -260,6 +270,32 @@ public class StartScreen implements Screen {
         float diffY = screenH * 0.45f;
         font.draw(batch, layout, diffX, diffY);
 
+        // --- NEW: COMPLETED PULSING TEXT ---
+        if (isCurrentDifficultyCompleted) {
+            completionPulseTimer += delta * 3f;
+            float pulseScale = 1f + MathUtils.sin(completionPulseTimer) * 0.07f;
+
+            // Draw slightly to the right of the difficulty text
+            // Or below it, depending on your preference.
+            // Here: Right side
+            String completedText = "COMPLETED!";
+            font.setColor(completionGold);
+            font.getData().setScale(0.7f * pulseScale); // Smaller font
+
+            layout.setText(font, completedText);
+
+            // Position: To the right of the arrow button + padding
+            float compX = moreDiffButton.x + moreDiffButton.width + 30f;
+            float compY = diffY - 10f; // Align with difficulty text vertically
+
+            font.draw(batch, completedText, compX, compY);
+
+            // Reset
+            font.setColor(Color.WHITE);
+            font.getData().setScale(1f);
+        }
+        // -----------------------------------
+
         // Buttons hover
         boolean hoverLess = lessDiffButton.contains(mouseX, mouseY);
         lessScale += ((hoverLess ? 1.2f : 1f) - lessScale) * 10f * delta;
@@ -291,34 +327,24 @@ public class StartScreen implements Screen {
         font.setColor(Color.WHITE);
 
 
-        // --- NEW: Highscore Logic ---
-        highscoreTimer += delta * 4f; // Speed of the pulse
-
-        // 1. Calculate Pulse Scale (bounces between 0.95 and 1.05)
+        // Highscore Logic
+        highscoreTimer += delta * 4f;
         float pulseScale = 1f + MathUtils.sin(highscoreTimer) * 0.05f;
-
-        // 2. Calculate Pulse Color (interpolates between Gold and White)
-        float colorSine = (MathUtils.sin(highscoreTimer) + 1f) / 2f; // map -1..1 to 0..1
+        float colorSine = (MathUtils.sin(highscoreTimer) + 1f) / 2f;
         currentHighscoreColor.set(redColor).lerp(whiteColor, colorSine);
 
-        // 3. Setup Text
         String highscoreText = "Highscore: " + highscoreVal;
-        font.getData().setScale(pulseScale * 0.8f); // Base size 0.8 * pulse
+        font.getData().setScale(pulseScale * 0.8f);
         font.setColor(currentHighscoreColor);
         layout.setText(font, highscoreText);
 
-        // 4. Calculate Position (Bottom Right)
         float padding = 200f;
         float scoreX = screenW - layout.width - padding;
         float scoreY = padding + layout.height;
 
-        // 5. Draw
         font.draw(batch, layout, scoreX, scoreY);
-
-        // 6. Reset Font (Important!)
         font.setColor(Color.WHITE);
         font.getData().setScale(1f);
-        // -----------------------------
 
         // Fade after play pressed
         if (playPressed) {
@@ -331,7 +357,7 @@ public class StartScreen implements Screen {
                 batch.draw(backgroundTexture, 0, 0, screenW, screenH);
                 batch.setColor(Color.WHITE);
 
-                if (fadeAlpha >= 1f) { // set to ! if testing
+                if (fadeAlpha >= 1f) {
                     Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
                     boolean storySeen = prefs.getBoolean("storySeen", false);
 
@@ -414,7 +440,7 @@ public class StartScreen implements Screen {
             this.swaySpeed = MathUtils.random(2f, 3f);
             this.rotation = MathUtils.random(0f, 360f);
             this.time = MathUtils.random(0f, 100f);
-            this.scale = MathUtils.random(1.6f, 2.3f) * (1080f / 240f); // scale relative to virtual height
+            this.scale = MathUtils.random(1.6f, 2.3f) * (1080f / 240f);
         }
 
         public void resetPosition() {

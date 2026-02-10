@@ -40,7 +40,7 @@ public class TutorialManager {
         FIRST_WAVE("Survive the first wave!\nGood luck!"),
 
         // --- PHASE 3: DYNAMIC ALERTS (Post-Tutorial) ---
-        SKILL_POINT("Level Up!\nSkill Point earned.\nGo to the center Altar."),
+        SKILL_POINT("Level Up!\nSkill Point earned.\nGo to the center Altar."), // Placeholder text, overridden in render()
         AUGMENT_READY("Augment Available!\nReturn to the Altar."),
 
         ALTAR_UPGRADE("Step into the altar to\nupgrade your character"),
@@ -57,9 +57,6 @@ public class TutorialManager {
 
     // Tracking progress
     private float moveTimer = 0f;
-
-    // UI Dimensions
-    private final float PADDING = 10f;
 
     public TutorialManager(GameWorld gameWorld, BitmapFont font) {
         this.gameWorld = gameWorld;
@@ -122,8 +119,6 @@ public class TutorialManager {
         }
 
         // 3. CHECK TUTORIAL COMPLETION LOCK
-        // --- FIX IS HERE: Changed >= to > ---
-        // We only want to mark the tutorial "Done" AFTER we pass the FIRST_WAVE step.
         if (currentStep.ordinal() > TutorialStep.FIRST_WAVE.ordinal()) {
             gameWorld.basicTutorialDone = true;
         }
@@ -232,6 +227,14 @@ public class TutorialManager {
         if (currentStep == TutorialStep.COMPLETED && warningTimer <= 0) return;
 
         String text = currentStep.text;
+
+        // --- NEW: DYNAMIC TEXT OVERRIDE ---
+        // If we are showing the skill point step, construct the text dynamically
+        if (currentStep == TutorialStep.SKILL_POINT) {
+            text = "Level Up!\n" + player.skillPoints + " Skill Points earned.\nGo to the center Altar.";
+        }
+        // ----------------------------------
+
         if (text == null || text.isEmpty()) return;
 
         font.getData().setScale(0.75f);

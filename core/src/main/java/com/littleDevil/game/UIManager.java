@@ -74,6 +74,8 @@ public class UIManager {
     private final float HOVER_SCALE = 1.2f;
     private final float SCALE_SPEED = 15f;
 
+    private boolean augmentClicked = false; // The safety lock
+
 
     public UIManager(
         GameWorld world,
@@ -208,9 +210,11 @@ public class UIManager {
     public void openAugmentPage() {
         if (!augmentPageOpen) {
             augmentPageOpen = true;
+            augmentClicked = false; // <--- RESET HERE
             world.augmentManager.rollOptions();
         }
     }
+
     public void closeAugmentPage() { augmentPageOpen = false; }
 
     private void renderAugmentPage() {
@@ -253,6 +257,11 @@ public class UIManager {
     }
 
     private void drawAugmentCard(Augment aug, float centerX, float centerY, int cardIndex) {
+        // --- SAFETY LOCK 1 ---
+        // If a card was already clicked this frame, stop processing immediately.
+        // This prevents double-selection or ghost clicks on overlapping UI.
+        if (augmentClicked) return;
+
         float dt = Gdx.graphics.getDeltaTime();
         viewport.unproject(tmp.set(Gdx.input.getX(), Gdx.input.getY(), 0));
 
@@ -275,7 +284,7 @@ public class UIManager {
             batch.draw(cardRegion, x, y, drawW, drawH);
         }
 
-        float baseTitleScale = 0.6f; // Smaller (was 0.95f)
+        float baseTitleScale = 0.6f;
         tutorialFont.getData().setScale(baseTitleScale * currentScale);
         tutorialFont.setColor(Color.GOLD);
         layout.setText(tutorialFont, aug.name);
@@ -284,27 +293,29 @@ public class UIManager {
         float titleY = y + (drawH * 0.36f);
         tutorialFont.draw(batch, layout, titleX, titleY);
 
-        // --- FIX: Description Smaller and Lower ---
-        float baseDescScale = 0.45f; // Smaller (was 0.75f)
+        // Description
+        float baseDescScale = 0.45f;
         tutorialFont.getData().setScale(baseDescScale * currentScale);
         tutorialFont.setColor(Color.WHITE);
 
         float sidePadding = 120f * currentScale;
         float maxTextWidth = drawW - (sidePadding * 2);
 
-        // Re-calculating layout with smaller font
         layout.setText(tutorialFont, aug.description, Color.WHITE, maxTextWidth, Align.center, true);
 
         float descX = x + sidePadding;
         float descY = titleY - 50f * currentScale;
 
-        // Using the String draw method for easier Align.center
         tutorialFont.draw(batch, aug.description, descX, descY, maxTextWidth, Align.center, true);
 
         tutorialFont.getData().setScale(1f);
         tutorialFont.setColor(Color.WHITE);
 
         if (isHovered && Gdx.input.justTouched()) {
+            // --- SAFETY LOCK 2 ---
+            // Lock input immediately so the loop doesn't check the next card
+            augmentClicked = true;
+
             world.augmentManager.selectAugment(aug);
             world.pendingAugments--;
 

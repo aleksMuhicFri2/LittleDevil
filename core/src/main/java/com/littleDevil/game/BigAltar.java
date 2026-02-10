@@ -8,72 +8,91 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 
 public class BigAltar {
 
-    private Texture spriteSheet;
-    private TextureRegion[] frames;
-    private TextureRegion currentFrame;
+    // --- CONFIGURATION ---
+    private static final int FRAME_WIDTH = 80;
+    private static final int FRAME_HEIGHT = 64;
+    private static final int TOTAL_FRAMES = 10;
+    private static final float FRAME_DURATION = 0.15f;
 
-    private float x, y;
+    // --- STATE ---
+    private int x, y;
     private float animationTimer = 0f;
-    private float frameDuration = 0.15f; // Snappier animation
     private int frameIndex = 0;
-    private int totalFrames = 10;
+    private boolean wasOnAltar = false; // Tracks state from previous frame
 
-    private boolean reversing = false;
-    private Sound candleLightSound;
+    // --- RESOURCES ---
+    private final Texture spriteSheet;
+    private final TextureRegion[] frames;
+    private TextureRegion currentFrame;
+    private final Sound candleLightSound;
 
-    public CollisionObject interactionBox = new CollisionObject(
-        "BigAltarInteractionBox",
-        292, 216, 16, 16, 0, 0, 0, 0, 3
-    );
+    // --- HITBOX ---
+    public CollisionObject interactionBox;
 
-    public BigAltar(float x, float y, String spriteSheetPath) {
+    public BigAltar(int x, int y, String spriteSheetPath) {
         this.x = x;
         this.y = y;
 
+        // 1. Initialize Texture & Sound
         spriteSheet = new Texture(spriteSheetPath);
+        // Nearest filter is crucial for pixel art to stay crisp
         spriteSheet.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
-        frames = new TextureRegion[totalFrames];
-        for (int i = 0; i < totalFrames; i++) {
-            frames[i] = new TextureRegion(spriteSheet, i * 80, 0, 80, 64);
-        }
-
-        currentFrame = frames[0];
         candleLightSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/candleStartSound.mp3"));
+
+        // 2. Slice Frames efficiently
+        TextureRegion[][] tmp = TextureRegion.split(spriteSheet, FRAME_WIDTH, FRAME_HEIGHT);
+        frames = new TextureRegion[TOTAL_FRAMES];
+        // Assuming sprite sheet is 1 row
+        System.arraycopy(tmp[0], 0, frames, 0, TOTAL_FRAMES);
+        currentFrame = frames[0];
+
+        // 3. Create Hitbox relative to Altar position (centered)
+        // Adjust offsets (30, 16) based on where the center of the altar sprite is visually
+        this.interactionBox = new CollisionObject(
+            "BigAltarInteractionBox",
+            x + 30, y + 16, 16, 16,
+            0, 0, 0, 0, 3 // Type 3 = ALTAR
+        );
     }
 
     public void update(float delta, Player player, GameWorld gameWorld) {
-        animationTimer += delta;
-        if (animationTimer < frameDuration) return;
-        animationTimer = 0f;
-
         boolean onAltar = player.isOnAltar(gameWorld);
 
-        // --- VISUAL ANIMATION ONLY ---
-        if (onAltar) {
-            // Opening Animation
-            if (frameIndex < totalFrames - 1) {
-                if (frameIndex == 0) candleLightSound.play(0.12f); // Play sound once on start
-                frameIndex++;
-            }
-        } else {
-            // Closing Animation
-            if (frameIndex > 0) {
-                frameIndex--;
-            }
-
-            // CLEANUP: If the player walks away, ensure the menus close.
-            // GameWorld handles opening, Altar handles closing when leaving.
-            if (!gameWorld.gameScreen.uiManager.isAugmentPageOpen()) {
-                gameWorld.gameScreen.uiManager.closeUpgradePage();
-            }
+        // --- LOGIC: HANDLE STATE CHANGES ---
+        // Only trigger these events once when the state flips, not every frame.
+        if (onAltar && !wasOnAltar) {
+            // Player just stepped ON
+            candleLightSound.play(0.12f);
+        }
+        else if (!onAltar && wasOnAltar) {
+            // Player just stepped OFF
+            gameWorld.gameScreen.uiManager.closeUpgradePage();
+            gameWorld.gameScreen.uiManager.closeAugmentPage();
         }
 
-        currentFrame = frames[frameIndex];
+        wasOnAltar = onAltar;
+
+        // --- VISUALS: ANIMATION ---
+        animationTimer += delta;
+        if (animationTimer >= FRAME_DURATION) {
+            animationTimer = 0f;
+
+            if (onAltar) {
+                // Opening
+                if (frameIndex < TOTAL_FRAMES - 1) frameIndex++;
+            } else {
+                // Closing
+                if (frameIndex > 0) frameIndex--;
+            }
+
+            currentFrame = frames[frameIndex];
+        }
     }
 
     public boolean isFullyOpen() {
-        return frameIndex >= 8;
+        // Considered open if nearly finished animation
+        return frameIndex >= TOTAL_FRAMES - 2;
     }
 
     public void render(SpriteBatch batch) {

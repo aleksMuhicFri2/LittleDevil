@@ -685,15 +685,29 @@ public class GameWorld {
     }
 
     public void endWave() {
+        // --- VICTORY CONDITION (Wave 10 Beaten) ---
         if (wave == 10) {
             waveActive = false;
             gameWon = true;
-            waitingForNextWave = false; // Stop the timer for the next wave
+            waitingForNextWave = false; // Stop timer
+
+            // --- SAVE PROGRESS ---
+            // Key format: "difficulty_0_completed", "difficulty_1_completed", etc.
+            String key = "difficulty_" + difficulty + "_completed";
+
+            // Only write if not already completed (saves a tiny bit of disk I/O)
+            if (!prefs.getBoolean(key, false)) {
+                prefs.putBoolean(key, true);
+                prefs.flush(); // Force save to disk immediately
+                System.out.println("Difficulty " + difficulty + " marked as completed!");
+            }
+            // ---------------------
+
             System.out.println(">>> VICTORY! <<<");
             return;
         }
 
-        // Normal wave transition
+        // --- NORMAL WAVE TRANSITION ---
         waveActive = false;
         waitingForNextWave = true;
         nextWaveTimer = 0f;
