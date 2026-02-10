@@ -12,14 +12,14 @@ public class SmallAltar {
 
     private float x, y;
     private float animationTimer = 0f;
-    private float setupFrameDuration; // variable time between setup frames
-    private float cycleFrameDuration = 0.15f; // 200ms for looping animation
+    private float setupFrameDuration;
+    private float cycleFrameDuration = 0.15f;
     private int frameIndex = 0;
     private int totalFrames = 8;
     public CollisionObject interactionBox;
 
-    private boolean isLoaded = false; // altar fully charged
-    private boolean cycling = false;  // cycling between frames 4–8
+    private boolean isLoaded = false;
+    private boolean cycling = false;
 
     private Boost boost = null;
     private boolean boostSpawned = false;
@@ -33,7 +33,6 @@ public class SmallAltar {
         spriteSheet = new Texture(spriteSheetPath);
         spriteSheet.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
 
-        // 8 frames horizontally, each 32x32
         frames = new TextureRegion[totalFrames];
         for (int i = 0; i < totalFrames; i++) {
             frames[i] = new TextureRegion(spriteSheet, i * 32, 0, 32, 32);
@@ -43,64 +42,75 @@ public class SmallAltar {
     }
 
     public void update(float delta, Player player, GameWorld gameWorld) {
-        animationTimer += delta;
 
         // --- Phase 1: Charging up to frame 4 ---
         if (!isLoaded && !cycling) {
-            if (animationTimer >= setupFrameDuration) {
-                animationTimer = 0f;
-                frameIndex++;
 
-                // When reaching frame 4 (index 3)
-                if (frameIndex == 3) {
-                    isLoaded = true;
-                    cycling = true; // start cycling
+            // LOGIC CHANGE: Only progress the charging animation if the wave is active!
+            if (gameWorld.waveActive) {
+                animationTimer += delta;
+
+                if (animationTimer >= setupFrameDuration) {
+                    animationTimer = 0f;
+                    frameIndex++;
+
+                    if (frameIndex == 3) {
+                        isLoaded = true;
+                        cycling = true;
+                    }
+
+                    if (frameIndex > 3) frameIndex = 3;
                 }
-
-                if (frameIndex > 3) frameIndex = 3;
             }
         }
 
         // --- Phase 2: Active cycling (frames 4–8) ---
         else if (cycling) {
+            // We continue animating the "glow" (cycling frames) even if wave stops
+            animationTimer += delta;
+
             if (!boostSpawned) {
+                // LOGIC CHANGE: Only spawn the actual item if the wave is active
+                if (gameWorld.waveActive) {
 
-                double r = Math.random();
-                Boost.Type type;
+                    double r = Math.random();
+                    Boost.Type type;
 
-                if (r < 0.25) type = Boost.Type.SPEED;
-                else if (r < 0.50) type = Boost.Type.DAMAGE;
-                else if (r < 0.75) type = Boost.Type.REGEN;
-                else type = Boost.Type.SUPER;
+                    if (r < 0.25) type = Boost.Type.SPEED;
+                    else if (r < 0.50) type = Boost.Type.DAMAGE;
+                    else if (r < 0.75) type = Boost.Type.REGEN;
+                    else type = Boost.Type.SUPER;
 
-                // choose texture
-                Texture texture;
+                    // WARNING: Creating new Textures in update() causes memory leaks!
+                    // Ideally, load these 4 textures once in the constructor.
+                    Texture texture;
+                    switch (type) {
+                        case SPEED -> texture = new Texture("MapAssets/movementBoost.png");
+                        case DAMAGE -> texture = new Texture("MapAssets/attackBoost.png");
+                        case REGEN -> texture = new Texture("MapAssets/regenBoost.png");
+                        case SUPER -> texture = new Texture("MapAssets/superBoost.png");
+                        default -> texture = new Texture("MapAssets/movementBoost.png");
+                    }
 
-                switch (type) {
-                    case SPEED -> texture = new Texture("MapAssets/movementBoost.png");
-                    case DAMAGE -> texture = new Texture("MapAssets/attackBoost.png");
-                    case REGEN -> texture = new Texture("MapAssets/regenBoost.png"); // you must add this
-                    case SUPER -> texture = new Texture("MapAssets/superBoost.png"); // and this
-                    default -> texture = new Texture("MapAssets/movementBoost.png");
+                    boost = new Boost(type, x + 14, y + 26, texture);
+                    manageLight(0.7f);
+                    boostSpawned = true;
                 }
-
-                boost = new Boost(type, x + 14, y + 26, texture);
-
-                manageLight(0.7f);
-                boostSpawned = true;
             }
 
+            // Update existing boost regardless of wave state (so player can pick it up after wave ends)
             if (boost != null && !boost.pickedUp) {
                 boost.update(delta);
             }
 
+            // Cycle Animation Logic
             if (animationTimer >= cycleFrameDuration) {
                 animationTimer = 0f;
                 frameIndex++;
-                if (frameIndex > 7) frameIndex = 3; // loop between 4–8
+                if (frameIndex > 7) frameIndex = 3;
             }
 
-            // If player steps on it while loaded
+            // Player Pickup Logic
             if (boost != null && !boost.pickedUp && player.isOnBoost(boost)) {
                 boost.applyEffect(player, gameWorld);
                 manageLight(0f);
@@ -128,10 +138,13 @@ public class SmallAltar {
     }
 
     private void manageLight(float alpha) {
+        /*
         LightData.lightObjects[19].alpha = alpha;
         LightData.lightObjects[20].alpha = alpha;
         LightData.lightObjects[21].alpha = alpha;
         LightData.lightObjects[22].alpha = alpha;
+
+         */
     }
 
     public void dispose() {

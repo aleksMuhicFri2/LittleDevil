@@ -23,14 +23,29 @@ public class TutorialManager {
     private final Texture iconBackground;
 
     private float animationTimer = 0f;
+    private float warningTimer = 0f;
 
     public enum TutorialStep {
+        // --- PHASE 1: BASICS ---
         MOVEMENT("Use WASD to Move"),
-        DASH("Press SPACE while moving\nto use Dash"),
+        WALK_OUT("Step out of the Safe Zone\nto use your weapons"),
+
         ATTACK("Left Click to Attack"),
+        WARN_ATTACK_ALTAR("Cannot attack inside\nthe Safe zone!"),
+
+        DASH("Press SPACE while moving\nto use Dash"),
+        WARN_DASH_STILL("You must be moving\nto Dash!"),
+
+        // --- PHASE 2: GAMEPLAY ---
         FIRST_WAVE("Survive the first wave!\nGood luck!"),
-        SKILL_POINT("Level Up! \nSkill Point earned.\nGo to the center Altar."),
-        ALTAR_EXPLAIN("Here you can upgrade \nyour character"),
+
+        // --- PHASE 3: DYNAMIC ALERTS (Post-Tutorial) ---
+        SKILL_POINT("Level Up!\nSkill Point earned.\nGo to the center Altar."),
+        AUGMENT_READY("Augment Available!\nReturn to the Altar."),
+
+        ALTAR_UPGRADE("Step into the altar to\nupgrade your character"),
+        NO_UPGRADES("No points to spend.\nKill enemies to gain XP!"),
+
         COMPLETED("");
 
         final String text;
@@ -38,15 +53,12 @@ public class TutorialManager {
     }
 
     private TutorialStep currentStep = TutorialStep.MOVEMENT;
+    private TutorialStep previousStep = null;
 
     // Tracking progress
     private float moveTimer = 0f;
-    private boolean hasDashed = false;
-    private boolean hasAttacked = false;
 
     // UI Dimensions
-    private final float BOX_WIDTH = 260f;
-    private final float BOX_HEIGHT = 70f;
     private final float PADDING = 10f;
 
     public TutorialManager(GameWorld gameWorld, BitmapFont font) {
@@ -55,13 +67,13 @@ public class TutorialManager {
         this.font = font;
         this.layout = new GlyphLayout();
 
-        // 1. RECTANGLE BACKGROUND
+        // 1. BACKGROUND
         Pixmap pix = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
-        pix.setColor(0f, 0f, 0f, 0.5f); // Translucent Black
+        pix.setColor(0f, 0f, 0f, 0.5f);
         pix.fill();
         popupBackground = new Texture(pix);
 
-        // 2. CIRCLE ICON
+        // 2. ICON
         iconBackground = createCircleTexture(32, new Color(0.8f, 0.1f, 0.1f, 1f));
         pix.dispose();
     }
@@ -75,58 +87,108 @@ public class TutorialManager {
         return tex;
     }
 
-    public void update(float delta) {
+    // --- CLEAN HELPER ---
+    private boolean isInSafeZone() {
+        return player.isOnAltar(gameWorld) || player.isUnreachable(gameWorld);
+    }
 
+    public void update(float delta) {
         animationTimer += delta;
 
-        // 1. UPDATE GLOBAL LOCK
-        if (currentStep.ordinal() > TutorialStep.DASH.ordinal()) {
-            gameWorld.basicTutorialDone = true;
-        }
-
-        // 2. HIGH PRIORITY: DYNAMIC EVENTS (Skill Points)
-        if (gameWorld.basicTutorialDone) {
-            if (player.skillPoints > 0) {
-                if (player.isOnAltar(gameWorld)) {
-                    currentStep = TutorialStep.ALTAR_EXPLAIN;
-                } else {
-                    currentStep = TutorialStep.SKILL_POINT;
-                }
-                return;
-            } else {
-                if (currentStep == TutorialStep.SKILL_POINT || currentStep == TutorialStep.ALTAR_EXPLAIN) {
-                    currentStep = TutorialStep.COMPLETED;
-                }
+        // 1. PERSISTENT INPUT CHECK
+        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+            if (isInSafeZone()) {
+                triggerWarning(TutorialStep.WARN_ATTACK_ALTAR);
             }
         }
 
-        // 3. LOW PRIORITY: LINEAR TUTORIAL
-        if (currentStep == TutorialStep.COMPLETED) return;
+        // 2. HANDLE WARNING TIMER
+        if (warningTimer > 0) {
+            warningTimer -= delta;
 
+            if (currentStep == TutorialStep.WARN_ATTACK_ALTAR && !isInSafeZone()) {
+                warningTimer = 0;
+            }
+
+            if (warningTimer <= 0) {
+                if (previousStep != null) {
+                    currentStep = previousStep;
+                    previousStep = null;
+                } else {
+                    currentStep = TutorialStep.COMPLETED;
+                }
+            }
+            return;
+        }
+
+        // 3. CHECK TUTORIAL COMPLETION LOCK
+        // --- FIX IS HERE: Changed >= to > ---
+        // We only want to mark the tutorial "Done" AFTER we pass the FIRST_WAVE step.
+        if (currentStep.ordinal() > TutorialStep.FIRST_WAVE.ordinal()) {
+            gameWorld.basicTutorialDone = true;
+        }
+
+        // 4. BRANCH LOGIC
+        if (gameWorld.basicTutorialDone) {
+            updateDynamicEvents();
+        } else {
+            updateLinearTutorial(delta);
+        }
+    }
+
+    // --- LOGIC A: Post-Tutorial Smart Tips ---
+    private void updateDynamicEvents() {
+        boolean inSafeZone = isInSafeZone();
+        boolean hasAugments = gameWorld.pendingAugments > 0;
+        boolean hasSkillPoints = player.skillPoints > 0;
+
+        if (hasAugments || hasSkillPoints) {
+            if (inSafeZone) {
+                currentStep = TutorialStep.ALTAR_UPGRADE;
+            } else {
+                currentStep = hasAugments ? TutorialStep.AUGMENT_READY : TutorialStep.SKILL_POINT;
+            }
+        }
+        else if (player.isOnAltar(gameWorld)) {
+            currentStep = TutorialStep.NO_UPGRADES;
+        }
+        else {
+            currentStep = TutorialStep.COMPLETED;
+        }
+    }
+
+    // --- LOGIC B: The First-Run Tutorial ---
+    private void updateLinearTutorial(float delta) {
         switch (currentStep) {
             case MOVEMENT:
-                // Check if any movement key is held
                 if (isMovingInputPressed()) {
                     moveTimer += delta;
-                    if (moveTimer > 1.5f) advanceStep(TutorialStep.ATTACK);
+                    if (moveTimer > 2.0f) {
+                        if (isInSafeZone()) advanceStep(TutorialStep.WALK_OUT);
+                        else advanceStep(TutorialStep.ATTACK);
+                    }
+                }
+                break;
+
+            case WALK_OUT:
+                if (!isInSafeZone()) {
+                    advanceStep(TutorialStep.ATTACK);
                 }
                 break;
 
             case ATTACK:
-                // Only count the attack if they are NOT standing on the Altar
                 if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
-                    if (!player.isOnAltar(gameWorld) && !player.isUnreachable(gameWorld)) {
-                        hasAttacked = true;
+                    if (!isInSafeZone()) {
                         advanceStep(TutorialStep.DASH);
                     }
                 }
                 break;
 
             case DASH:
-                // Only count the dash if SPACE is pressed WHILE a movement key is held
                 if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
-                    if (isMovingInputPressed()) {
-                        hasDashed = true;
+                    if (!isMovingInputPressed()) {
+                        triggerWarning(TutorialStep.WARN_DASH_STILL);
+                    } else {
                         advanceStep(TutorialStep.FIRST_WAVE);
                         gameWorld.canStartNextWave = true;
                         gameWorld.startWave();
@@ -135,12 +197,21 @@ public class TutorialManager {
                 break;
 
             case FIRST_WAVE:
+                // Only mark completed when wave 2 starts
                 if (gameWorld.getWave() > 1) {
                     advanceStep(TutorialStep.COMPLETED);
                 }
                 break;
-            default:
-                break;
+
+            default: break;
+        }
+    }
+
+    private void triggerWarning(TutorialStep warningStep) {
+        if (warningTimer <= 0) {
+            previousStep = currentStep;
+            currentStep = warningStep;
+            warningTimer = 2.0f;
         }
     }
 
@@ -157,14 +228,13 @@ public class TutorialManager {
     }
 
     public void render(SpriteBatch batch, float screenWidth, float screenHeight) {
-        if (currentStep == TutorialStep.COMPLETED) return;
-        if (currentStep == TutorialStep.FIRST_WAVE && gameWorld.enemiesAlive > 0) return;
+        // 1. Don't draw if Completed AND we aren't showing a warning/tip
+        if (currentStep == TutorialStep.COMPLETED && warningTimer <= 0) return;
 
         String text = currentStep.text;
-        if (text.isEmpty()) return;
+        if (text == null || text.isEmpty()) return;
 
         font.getData().setScale(0.75f);
-
         float maxTextWidth = 300f;
         layout.setText(font, text, Color.WHITE, maxTextWidth, Align.center, true);
 
@@ -175,13 +245,15 @@ public class TutorialManager {
         float x = screenWidth - dynamicBoxW - 30f;
         float y = screenHeight * 0.5f;
 
+        // Background
         batch.setColor(1f, 1f, 1f, 1f);
         batch.draw(popupBackground, x, y, dynamicBoxW, dynamicBoxH);
 
-        // --- 5. FIXED PULSING MATH ---
-        // Speed: * 5f (Faster)
-        // Strength: * 0.2f (+/- 20% size change)
+        // PULSING ANIMATION
         float pulse = 1f + MathUtils.sin(animationTimer * 6f) * 0.1f;
+
+        boolean isWarning = (warningTimer > 0 || currentStep == TutorialStep.NO_UPGRADES);
+        Color circleColor = isWarning ? Color.RED : new Color(0.8f, 0.1f, 0.1f, 1f);
 
         float baseIconSize = 60f;
         float currentIconSize = baseIconSize * pulse;
@@ -189,24 +261,23 @@ public class TutorialManager {
         float centerX = x + dynamicBoxW;
         float centerY = y + dynamicBoxH;
 
+        batch.setColor(circleColor);
         batch.draw(iconBackground,
             centerX - currentIconSize / 2f,
             centerY - currentIconSize / 2f,
             currentIconSize, currentIconSize
         );
+        batch.setColor(Color.WHITE);
 
-        // --- 6. DRAW PULSING "!" ---
+        // "!" DRAWING
         font.getData().setScale(1.2f * pulse);
         GlyphLayout bangLayout = new GlyphLayout(font, "!");
-
         float bangX = centerX - bangLayout.width / 2f;
         float bangY = centerY + bangLayout.height / 2f;
-
         font.draw(batch, "!", bangX, bangY);
 
-        // --- 7. DRAW MAIN TEXT ---
+        // MAIN TEXT
         font.getData().setScale(0.75f);
-
         float textY = y + (dynamicBoxH + layout.height) / 2f;
         font.draw(batch, text, x + dynamicPadding, textY, layout.width, Align.center, true);
 

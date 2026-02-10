@@ -30,9 +30,12 @@ public class LightData {
         new Light(330, 239, 32, 32, "MapAssets/light5.png", 0f),
 
         // altars done indexes [19, 20, 21, 22]
+        /*
         new Light(514, 66, 48, 32, "MapAssets/light4.png", 0f),
         new Light(82, 66, 48, 32, "MapAssets/light4.png", 0f),
         new Light(514, 330, 48, 32, "MapAssets/light4.png", 0f),
         new Light(82, 330, 48, 32, "MapAssets/light4.png", 0f),
+
+         */
     };
 }

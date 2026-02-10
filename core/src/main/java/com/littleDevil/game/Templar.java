@@ -215,7 +215,7 @@ public class Templar extends Enemy {
         float scale = 1.0f;
 
         if (playerHitsFront) {
-            specificMult *= 0.6f; // Shield reduction
+            specificMult *= 0.5f; // Shield reduction
             textColor.set(0.8f, 0.8f, 1f, 1f);
         } else {
             specificMult *= 1.2f; // Backstab bonus

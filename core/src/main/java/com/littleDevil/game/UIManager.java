@@ -471,17 +471,73 @@ public class UIManager {
         float x = (viewport.getWorldWidth() - w) / 2f;
         float y = -120f + uiOffsetY;
 
-        float hp = Math.min(1f, player.displayHP / player.baseHP);
-        float en = Math.min(1f, player.displayEnergy / player.baseEnergy);
-        float xp = Math.min(1f, player.displayXp / player.neededXp);
+        float hpPercent = Math.min(1f, player.displayHP / player.baseHP);
+        float enPercent = Math.min(1f, player.displayEnergy / player.baseEnergy);
+        float xpPercent = Math.min(1f, player.displayXp / player.neededXp);
 
+        // 1. Draw Backgrounds & Bars
         batch.draw(barsBackground, x, y, w, h);
-        batch.draw(healthBar, x + 12f * scale, y + 23f * scale, 43f * scale * hp, 5f * scale);
-        batch.draw(energyBar, x + 57f * scale, y + 23f * scale, 43f * scale * en, 5f * scale);
-        batch.draw(xpBar,     x + 18f * scale, y + 32f * scale, 76f * scale * xp, 2f * scale);
+        batch.draw(healthBar, x + 12f * scale, y + 23f * scale, 43f * scale * hpPercent, 5f * scale);
+        batch.draw(energyBar, x + 57f * scale, y + 23f * scale, 43f * scale * enPercent, 5f * scale);
+        batch.draw(xpBar,     x + 18f * scale, y + 32f * scale, 76f * scale * xpPercent, 2f * scale);
 
-        drawLevelText(y, h, scale);
+        // 2. Draw Frame
         batch.draw(playerUI, x, y, w, h);
+
+        // --- SHARED FONT SETTINGS ---
+        tutorialFont.getData().setScale(0.5f);
+        tutorialFont.setColor(Color.BLACK);
+        float offset = 0.3f; // Bold thickness
+
+        // ==========================================
+        // 3. DRAW HP TEXT
+        // ==========================================
+        String hpText = (int)player.currentHP + "/" + (int)player.baseHP;
+        layout.setText(tutorialFont, hpText);
+
+        float hpBarCenterX = x + (12f * scale) + (43f * scale) / 2f;
+        float hpBarCenterY = y + (23f * scale) + (5f * scale) / 2f;
+        float hpTextX = hpBarCenterX - layout.width / 2f;
+        float hpTextY = hpBarCenterY + layout.height / 2f + 1f;
+
+        // Bold Effect
+        tutorialFont.draw(batch, hpText, hpTextX - offset, hpTextY);
+        tutorialFont.draw(batch, hpText, hpTextX + offset, hpTextY);
+        tutorialFont.draw(batch, hpText, hpTextX, hpTextY - offset);
+        tutorialFont.draw(batch, hpText, hpTextX, hpTextY + offset);
+        // Center Text
+        tutorialFont.draw(batch, hpText, hpTextX, hpTextY);
+
+        // ==========================================
+        // 4. DRAW ENERGY TEXT
+        // ==========================================
+        String enText = (int)player.currentEnergy + "/" + (int)player.baseEnergy;
+        layout.setText(tutorialFont, enText); // Recalculate layout for new text width
+
+        // Note: Energy bar starts at 57f instead of 12f
+        float enBarCenterX = x + (57f * scale) + (43f * scale) / 2f;
+        // Y position is identical to HP bar
+        float enBarCenterY = y + (23f * scale) + (5f * scale) / 2f;
+
+        float enTextX = enBarCenterX - layout.width / 2f;
+        float enTextY = enBarCenterY + layout.height / 2f + 1f;
+
+        // Bold Effect
+        tutorialFont.draw(batch, enText, enTextX - offset, enTextY);
+        tutorialFont.draw(batch, enText, enTextX + offset, enTextY);
+        tutorialFont.draw(batch, enText, enTextX, enTextY - offset);
+        tutorialFont.draw(batch, enText, enTextX, enTextY + offset);
+        // Center Text
+        tutorialFont.draw(batch, enText, enTextX, enTextY);
+
+        // ==========================================
+
+        // Reset Font settings
+        tutorialFont.getData().setScale(1.0f);
+        tutorialFont.setColor(Color.WHITE);
+
+        // 5. Draw Level
+        drawLevelText(y, h, scale);
     }
 
     private void drawLevelText(float uiY, float uiHeight, float scale) {

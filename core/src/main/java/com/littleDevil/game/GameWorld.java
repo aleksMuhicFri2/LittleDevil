@@ -141,10 +141,10 @@ public class GameWorld {
 
         // Altars
         bigAltar = new BigAltar(262, 200, "Spritesheets/bigAltarSpritesheet.png");
-        smallAltarTopLeft = new SmallAltar(66, 314, "Spritesheets/littleAltarSpritesheet.png", 5f, CollisionObjectsData.collisionObjects[0]);
-        smallAltarTopRight = new SmallAltar(498, 314, "Spritesheets/littleAltarSpritesheet.png", 5f, CollisionObjectsData.collisionObjects[1]);
-        smallAltarBotRight = new SmallAltar(498, 50, "Spritesheets/littleAltarSpritesheet.png", 5f, CollisionObjectsData.collisionObjects[2]);
-        smallAltarBotLeft = new SmallAltar(66, 50, "Spritesheets/littleAltarSpritesheet.png", 5f, CollisionObjectsData.collisionObjects[3]);
+        smallAltarTopLeft = new SmallAltar(66, 314, "Spritesheets/littleAltarSpritesheet.png", 10f, CollisionObjectsData.collisionObjects[0]);
+        smallAltarTopRight = new SmallAltar(498, 314, "Spritesheets/littleAltarSpritesheet.png", 10f, CollisionObjectsData.collisionObjects[1]);
+        smallAltarBotRight = new SmallAltar(498, 50, "Spritesheets/littleAltarSpritesheet.png", 10f, CollisionObjectsData.collisionObjects[2]);
+        smallAltarBotLeft = new SmallAltar(66, 50, "Spritesheets/littleAltarSpritesheet.png", 10f, CollisionObjectsData.collisionObjects[3]);
 
         // Candles
         candleSheet = new Texture("Spritesheets/candleSmallSpritesheet.png");
@@ -215,7 +215,7 @@ public class GameWorld {
         player.update(delta, this);
 
         // 4. Process Spawn Logic (DELEGATED TO SPAWNER)
-        if (waveActive && !player.isOnAltar(this)) {
+        if (waveActive && !player.isOnAltar(this) && !player.isUnreachable(this)) {
 
             // Score logic (kept here or moved to spawner, up to you)
             passiveScoreTimer += delta;
