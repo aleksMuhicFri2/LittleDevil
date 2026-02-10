@@ -36,7 +36,7 @@ public class Spawner {
 
         // 1. Determine how long the "Spawning Phase" of this wave should last.
         // Base 25s + 6s per wave level. (Wave 1 = 31s, Wave 10 = 85s)
-        float targetWaveDuration = 25f + (waveNumber * 6f);
+        float targetWaveDuration = 20f + (waveNumber * 4f);
 
         // 2. Calculate intervals based on count.
         // If 10 templars in 60s -> spawn every 6s.

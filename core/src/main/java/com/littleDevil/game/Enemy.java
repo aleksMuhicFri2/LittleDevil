@@ -234,6 +234,7 @@ public abstract class Enemy {
         // 1. Basic World Updates
         gameWorld.score += this.scoreValue;
         gameWorld.spawnOrbs(this, player);
+        player.gainEnergy(player.luck);
 
         // 2. Global Player Buffs
         if (player.hasBloodthirsty) {

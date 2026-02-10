@@ -62,7 +62,7 @@ public class Boost {
                 player.boostHP(player.baseHP / 4);
                 break;
             case SUPER:
-                player.currentEnergy = Math.min(player.baseEnergy, player.currentEnergy + player.baseEnergy / 4);
+                player.currentEnergy = Math.min(player.baseEnergy, player.currentEnergy + player.baseEnergy / 6);
                 break;
         }
     }

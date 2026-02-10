@@ -475,69 +475,93 @@ public class UIManager {
         float enPercent = Math.min(1f, player.displayEnergy / player.baseEnergy);
         float xpPercent = Math.min(1f, player.displayXp / player.neededXp);
 
-        // 1. Draw Backgrounds & Bars
+        // 1. Draw Background
         batch.draw(barsBackground, x, y, w, h);
-        batch.draw(healthBar, x + 12f * scale, y + 23f * scale, 43f * scale * hpPercent, 5f * scale);
-        batch.draw(energyBar, x + 57f * scale, y + 23f * scale, 43f * scale * enPercent, 5f * scale);
-        batch.draw(xpBar,     x + 18f * scale, y + 32f * scale, 76f * scale * xpPercent, 2f * scale);
 
-        // 2. Draw Frame
+        // 2. Draw Health Bar (Standard Red)
+        batch.draw(healthBar, x + 12f * scale, y + 23f * scale, 43f * scale * hpPercent, 5f * scale);
+
+        // ==========================================
+        // 3. DRAW ENERGY BAR (SUPER LOGIC)
+        // ==========================================
+        Color originalColor = batch.getColor();
+
+        if (player.isSuperActive) {
+            // PULSE EFFECT: Oscillates fast between Cyan and White
+            // frequency (0.2f) controls speed, +/- 0.4f controls intensity
+            float pulse = MathUtils.sin(Gdx.graphics.getFrameId() * 1f) * 0.3f + 0.6f;
+
+            // Create a custom pulsing color (Cyan base -> Lighter Cyan)
+            batch.setColor(0.2f * pulse, 1f, 1f, 1f);
+
+        } else if (player.currentEnergy >= player.baseEnergy) {
+            // READY STATE: Solid Cyan Glow
+            batch.setColor(0f, 1f, 1f, 1f);
+
+        } else {
+            // NORMAL STATE: Standard Energy Color (Reset to white so texture color shows)
+            // If your texture is white, this draws it white.
+            // If you want it Blue by default: batch.setColor(Color.BLUE);
+            batch.setColor(Color.WHITE);
+        }
+
+        batch.draw(energyBar, x + 57f * scale, y + 23f * scale, 43f * scale * enPercent, 5f * scale);
+
+        // RESET COLOR immediately so we don't tint the rest of the UI
+        batch.setColor(originalColor);
+        // ==========================================
+
+        // 4. Draw XP Bar
+        batch.draw(xpBar, x + 18f * scale, y + 32f * scale, 76f * scale * xpPercent, 2f * scale);
+
+        // 5. Draw UI Frame
         batch.draw(playerUI, x, y, w, h);
 
-        // --- SHARED FONT SETTINGS ---
+        // 6. Draw Text (HP & Energy)
         tutorialFont.getData().setScale(0.5f);
         tutorialFont.setColor(Color.BLACK);
-        float offset = 0.3f; // Bold thickness
+        float offset = 0.3f;
 
-        // ==========================================
-        // 3. DRAW HP TEXT
-        // ==========================================
+        // --- HP TEXT ---
         String hpText = (int)player.currentHP + "/" + (int)player.baseHP;
         layout.setText(tutorialFont, hpText);
+        float hpX = x + (12f * scale) + (43f * scale)/2f - layout.width/2f;
+        float hpY = y + (23f * scale) + (5f * scale)/2f + layout.height/2f + 1f;
 
-        float hpBarCenterX = x + (12f * scale) + (43f * scale) / 2f;
-        float hpBarCenterY = y + (23f * scale) + (5f * scale) / 2f;
-        float hpTextX = hpBarCenterX - layout.width / 2f;
-        float hpTextY = hpBarCenterY + layout.height / 2f + 1f;
+        drawBoldText(hpText, hpX, hpY, offset);
 
-        // Bold Effect
-        tutorialFont.draw(batch, hpText, hpTextX - offset, hpTextY);
-        tutorialFont.draw(batch, hpText, hpTextX + offset, hpTextY);
-        tutorialFont.draw(batch, hpText, hpTextX, hpTextY - offset);
-        tutorialFont.draw(batch, hpText, hpTextX, hpTextY + offset);
-        // Center Text
-        tutorialFont.draw(batch, hpText, hpTextX, hpTextY);
+        // --- ENERGY TEXT ---
+        // If super is active, show "SUPER!" or time left, otherwise show numbers
+        String enText;
+        if (player.isSuperActive) {
+            enText = String.format("SUPER: %.1fs", player.superDurationTimer);
+            tutorialFont.setColor(Color.CYAN); // Make text pop
+        } else {
+            enText = (int)player.currentEnergy + "/" + (int)player.baseEnergy;
+            tutorialFont.setColor(Color.BLACK);
+        }
 
-        // ==========================================
-        // 4. DRAW ENERGY TEXT
-        // ==========================================
-        String enText = (int)player.currentEnergy + "/" + (int)player.baseEnergy;
-        layout.setText(tutorialFont, enText); // Recalculate layout for new text width
+        layout.setText(tutorialFont, enText);
+        float enX = x + (57f * scale) + (43f * scale)/2f - layout.width/2f;
+        // Same Y as HP
 
-        // Note: Energy bar starts at 57f instead of 12f
-        float enBarCenterX = x + (57f * scale) + (43f * scale) / 2f;
-        // Y position is identical to HP bar
-        float enBarCenterY = y + (23f * scale) + (5f * scale) / 2f;
+        drawBoldText(enText, enX, hpY, offset);
 
-        float enTextX = enBarCenterX - layout.width / 2f;
-        float enTextY = enBarCenterY + layout.height / 2f + 1f;
-
-        // Bold Effect
-        tutorialFont.draw(batch, enText, enTextX - offset, enTextY);
-        tutorialFont.draw(batch, enText, enTextX + offset, enTextY);
-        tutorialFont.draw(batch, enText, enTextX, enTextY - offset);
-        tutorialFont.draw(batch, enText, enTextX, enTextY + offset);
-        // Center Text
-        tutorialFont.draw(batch, enText, enTextX, enTextY);
-
-        // ==========================================
-
-        // Reset Font settings
+        // Reset Font
         tutorialFont.getData().setScale(1.0f);
         tutorialFont.setColor(Color.WHITE);
 
-        // 5. Draw Level
+        // 7. Draw Level
         drawLevelText(y, h, scale);
+    }
+
+    // Helper for the fake bolding
+    private void drawBoldText(String text, float x, float y, float offset) {
+        tutorialFont.draw(batch, text, x - offset, y);
+        tutorialFont.draw(batch, text, x + offset, y);
+        tutorialFont.draw(batch, text, x, y - offset);
+        tutorialFont.draw(batch, text, x, y + offset);
+        tutorialFont.draw(batch, text, x, y);
     }
 
     private void drawLevelText(float uiY, float uiHeight, float scale) {

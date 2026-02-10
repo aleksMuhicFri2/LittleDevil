@@ -24,7 +24,12 @@ public class Player {
 
     // --- STATS ---
     public float baseHP = 200f, currentHP = baseHP;
+
     public float baseEnergy = 100f, currentEnergy = 0f;
+    public boolean isSuperActive = false;
+    public float superDurationTimer = 0f;
+    private float totalSuperDuration = 0f;
+
     public float armor = 10f;
     public float baseSpeed = 70f, speed = baseSpeed;
     public float baseDamage = 60f, damage = baseDamage;
@@ -250,6 +255,8 @@ public class Player {
         // 5. Audio & Visuals
         updateAudio(delta, moveX, moveY);
         updateAnimation(delta, (moveX != 0 || moveY != 0));
+
+        updateSuperLogic(delta);
     }
 
     private void updateTimers(float delta) {
@@ -315,7 +322,11 @@ public class Player {
             y += dashDirY * dashSpeed * delta;
             if (dashTime <= 0) {
                 isDashing = false;
-                dashTimer = dashCooldown;
+                float cooldownToSet = dashCooldown;
+                if (isSuperActive) {
+                    cooldownToSet = dashCooldown / 3f; // Half cooldown
+                }
+                dashTimer = cooldownToSet;
             }
             return;
         }
@@ -344,6 +355,8 @@ public class Player {
         }
 
         if (isOnStairs(gameWorld)) currentSpeed *= (2f / 3f);
+
+        if (isSuperActive) currentSpeed *= 1.7f;
 
         x += moveX * currentSpeed * delta;
         y += moveY * currentSpeed * delta;
@@ -393,7 +406,11 @@ public class Player {
 
             // 2. Mark for reset
             shouldReset = true;
-            dashTimer = dashCooldown;
+            float cooldownToSet = dashCooldown;
+            if (isSuperActive) {
+                cooldownToSet = dashCooldown / 3f; // Half cooldown
+            }
+            dashTimer = cooldownToSet;
 
             gameWorld.spawnText(x, y + height - 10f, "BONK!", Color.WHITE, 0.5f);
         }
@@ -407,10 +424,21 @@ public class Player {
     }
 
     private void performAttack() {
-        attackCount ++;
+        attackCount++;
         isAttacking = true;
-        attackTimer = attackDuration;
-        attackCooldownTimer = baseAttackSpeed; // Use the stored attack speed var
+
+        // 1. Calculate Speed Multiplier
+        float speedMult = 1.0f;
+        if (isSuperActive) {
+            speedMult = 0.5f; // 50% multiplier = 2x Speed
+        }
+
+        // 2. Set Cooldown (When can I click again?)
+        attackCooldownTimer = baseAttackSpeed * speedMult;
+
+        // 3. Set Animation Duration (How fast does the sword visually swing?)
+        // FIX: We scale this too, so the animation matches the fast cooldown!
+        attackTimer = attackDuration * speedMult;
 
         // --- THE FLASH LOGIC ---
         if (hasTheFlash) {
@@ -433,7 +461,10 @@ public class Player {
         // Update facing direction based on attack
         facingRight = !(attackAngle > 90 && attackAngle < 270);
 
+        // Audio: Shift pitch up slightly during Super for "faster" sound
         float randomPitch = 0.8f + MathUtils.random(0.4f);
+        if (isSuperActive) randomPitch += 0.2f;
+
         attackSound.play(0.5f, randomPitch, 0);
     }
 
@@ -732,6 +763,10 @@ public class Player {
             luckyThreesDamage = (attackCount % 3 == 0) ? luckyThreesDmgBonus : 0;
         }
 
+        if (isSuperActive) {
+            totalMultiplier *= 1.5f; // Damage Boost
+        }
+
         return (int)(baseDamage * totalMultiplier + luckyThreesDamage);
     }
 
@@ -800,6 +835,56 @@ public class Player {
             heal(amount + amount * boostedAnimalBoostPermanent, gameWorld);
         } else {
             heal(amount, gameWorld);
+        }
+    }
+
+    public void gainEnergy(float luck) {
+        // Constraint: Cannot gain energy while Super is active
+        if (isSuperActive) return;
+
+        // 1-3 Energy based on RNG + Luck
+        int amount = MathUtils.random(1, 5);
+
+        // Luck gives a chance for +1 extra
+        if (MathUtils.random() < (luck * 0.5f)) {
+            amount += 1;
+        }
+
+        currentEnergy += amount;
+
+        // Clamp and Check Activation
+        if (currentEnergy >= baseEnergy) {
+            currentEnergy = baseEnergy;
+            activateSuper();
+        }
+    }
+
+    private void activateSuper() {
+        isSuperActive = true;
+
+        // Duration: 5s base + 1s per superLevel (Max 12s)
+        totalSuperDuration = 7f + (superLevel * 1.0f);
+        superDurationTimer = totalSuperDuration;
+
+        // Visual Pop
+        gameWorld.spawnText(x, y + height + 10, "SUPER ACTIVE!", Color.CYAN, 1.2f);
+    }
+
+    private void endSuper() {
+        isSuperActive = false;
+        currentEnergy = 0f; // Reset energy to 0
+        gameWorld.spawnText(x, y + height + 10, "SUPER ENDED", Color.GRAY, 0.8f);
+    }
+
+    private void updateSuperLogic(float delta) {
+        if (isSuperActive) {
+            superDurationTimer -= delta;
+
+            currentEnergy = (superDurationTimer / totalSuperDuration) * baseEnergy;
+
+            if (superDurationTimer <= 0f) {
+                endSuper();
+            }
         }
     }
 
