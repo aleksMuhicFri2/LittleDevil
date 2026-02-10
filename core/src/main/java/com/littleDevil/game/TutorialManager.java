@@ -94,7 +94,9 @@ public class TutorialManager {
 
         // 1. PERSISTENT INPUT CHECK
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
-            if (isInSafeZone()) {
+            boolean menuOpen = gameWorld.gameScreen.uiManager.isAnyMenuOpen();
+
+            if (isInSafeZone() && !menuOpen) {
                 triggerWarning(TutorialStep.WARN_ATTACK_ALTAR);
             }
         }
@@ -231,7 +233,10 @@ public class TutorialManager {
         // --- NEW: DYNAMIC TEXT OVERRIDE ---
         // If we are showing the skill point step, construct the text dynamically
         if (currentStep == TutorialStep.SKILL_POINT) {
-            text = "Level Up!\n" + player.skillPoints + " Skill Points earned.\nGo to the center Altar.";
+            // Check if plural or singular is needed
+            String pointWord = (player.skillPoints == 1) ? "Skill Point" : "Skill Points";
+
+            text = "Level Up!\n" + player.skillPoints + " " + pointWord + " earned.\nGo to the center Altar.";
         }
         // ----------------------------------
 

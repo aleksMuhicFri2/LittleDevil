@@ -138,13 +138,15 @@ public class AugmentManager {
                 break;
 
             case "SUS_DRUG":
-                // Pure stat change, no boolean flag needed unless you want visuals
-                float difference = player.baseDamage * 0.3f;
+                // 1. Calculate the sacrifice
+                float dmgSacrifice = player.baseDamage * 0.3f;
+
                 player.baseDamage *= 0.7f;
                 player.damage = player.baseDamage;
+                float hpGain = (player.baseHP * 0.2f) + dmgSacrifice;
 
-                player.baseHP *= 1.2f + (int)difference;
-                player.currentHP *= 1.2f + (int)difference;
+                player.baseHP += hpGain;
+                player.currentHP += hpGain;
                 break;
 
             // SPEED
@@ -164,14 +166,13 @@ public class AugmentManager {
             case "SLOW_DANGEROUS":
                 player.hasSlowDangerous = true;
                 // Immediate stat change
-                int diff = (int)(player.baseSpeed * 0.4f);
+                int diff = (int)(player.baseSpeed * 0.3f);
                 player.baseSpeed *= 0.7f;
                 player.speed = player.baseSpeed;
 
                 player.baseDamage += diff;
                 player.damage = player.baseDamage;
                 break;
-
 
             // LUCK
 
