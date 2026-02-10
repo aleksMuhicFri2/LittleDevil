@@ -95,7 +95,7 @@ public class GameWorld {
     public enum EnemyType { TEMPLAR, NUN, PRIEST }
 
     public float score = 0f;
-    public int wave = 1;
+    public int wave = 10;
     public int combo = 0;
     public boolean gameWon = false;
 
@@ -658,8 +658,17 @@ public class GameWorld {
         int index = Math.min(wave - 1, WaveManager.waves.length - 1);
         Wave w = WaveManager.waves[index];
 
-        // NEW: Tell Spawner to start
-        spawner.startWave(wave, w);
+        Spawner.Difficulty diffEnum;
+        switch (difficulty) {
+            case 0 -> diffEnum = Spawner.Difficulty.EASY;
+            case 1 -> diffEnum = Spawner.Difficulty.HARD;
+            case 2 -> diffEnum = Spawner.Difficulty.CRAZY;
+            case 3 -> diffEnum = Spawner.Difficulty.HELL;
+            default -> diffEnum = Spawner.Difficulty.HARD;
+        }
+
+        // Pass the enum to the spawner
+        spawner.startWave(wave, w, diffEnum);
     }
 
     public void endWave() {

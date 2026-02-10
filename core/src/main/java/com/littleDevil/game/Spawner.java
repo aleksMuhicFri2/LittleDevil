@@ -1,7 +1,6 @@
 package com.littleDevil.game;
 
 import com.badlogic.gdx.math.MathUtils;
-import java.util.Random;
 
 public class Spawner {
 
@@ -22,6 +21,18 @@ public class Spawner {
     private float nunInterval;
     private float priestInterval;
 
+    public enum Difficulty {
+        EASY(1.5f),    // 50% slower spawns (Enemies trickle in)
+        HARD(1.0f),  // Standard speed
+        CRAZY(0.8f),    // 30% faster spawns (Chaos)
+        HELL(0.65f);
+
+        final float multiplier;
+        Difficulty(float multiplier) {
+            this.multiplier = multiplier;
+        }
+    }
+
     public Spawner(GameWorld gameWorld) {
         this.gameWorld = gameWorld;
     }
@@ -29,18 +40,17 @@ public class Spawner {
     /**
      * Calculates spawn intervals so all enemies finish spawning roughly at the same time.
      */
-    public void startWave(int waveNumber, Wave waveData) {
+    public void startWave(int waveNumber, Wave waveData, Difficulty difficulty) {
         this.templarsRemaining = waveData.templars;
         this.nunsRemaining = waveData.nuns;
         this.priestsRemaining = waveData.priests;
 
-        // 1. Determine how long the "Spawning Phase" of this wave should last.
-        // Base 25s + 6s per wave level. (Wave 1 = 31s, Wave 10 = 85s)
-        float targetWaveDuration = 20f + (waveNumber * 4f);
+        float baseDuration = 20f + (waveNumber * 5f);
 
-        // 2. Calculate intervals based on count.
-        // If 10 templars in 60s -> spawn every 6s.
-        // If 2 priests in 60s -> spawn every 30s.
+        // Apply Difficulty Multiplier:
+        // Easy (1.5) -> Duration becomes longer -> Intervals become larger -> Spawns happen slower.
+        // Hard (0.7) -> Duration becomes shorter -> Intervals become smaller -> Spawns happen faster.
+        float targetWaveDuration = baseDuration * difficulty.multiplier;
 
         if (templarsRemaining > 0) {
             templarInterval = targetWaveDuration / templarsRemaining;
