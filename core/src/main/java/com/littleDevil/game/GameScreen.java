@@ -31,7 +31,7 @@ public class GameScreen implements Screen {
     private OrthographicCamera camera;
     private ExtendViewport viewport;
     private OrthographicCamera UICamera;
-    private FitViewport UIViewport; // CHANGED: From ExtendViewport to FitViewport
+    private FitViewport UIViewport;
 
     // Virtual Resolution Constants
     private final float VIRTUAL_WIDTH = 1920f;
@@ -47,6 +47,8 @@ public class GameScreen implements Screen {
     // Mouse tracking
     private final Vector2 mouseWorldPos = new Vector2();
     private final Vector2 mouseDir = new Vector2();
+    // Safety: Moved here to avoid garbage collection creation every frame
+    private final Vector3 mouseScreen = new Vector3();
     public static float mouseAngle = 0f;
 
     // Music
@@ -82,7 +84,6 @@ public class GameScreen implements Screen {
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("pixelon.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
 
-        // CHANGED: Font sizes now use VIRTUAL_HEIGHT instead of Gdx.graphics.getHeight()
         param.size = (int)(VIRTUAL_HEIGHT * 0.06f);
         param.color = new Color(0.85f, 0.85f, 0.85f, 0.5f);
         scoreFont = generator.generateFont(param);
@@ -127,14 +128,12 @@ public class GameScreen implements Screen {
         darknessTexture = new Texture(pix);
         pix.dispose();
 
-        // World Viewport: Stays Extend so it fills the whole screen
         camera = new OrthographicCamera();
         viewport = new ExtendViewport(gameWorld.mapWidth / 2f, gameWorld.mapHeight / 2f, camera);
         viewport.apply();
         camera.position.set(viewport.getWorldWidth() / 2f, viewport.getWorldHeight() / 2f, 0);
         camera.update();
 
-        // UI Viewport: CHANGED to FitViewport with 1920x1080
         UICamera = new OrthographicCamera();
         UIViewport = new FitViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, UICamera);
         UIViewport.apply();
@@ -161,12 +160,15 @@ public class GameScreen implements Screen {
             xpBar
         );
 
-        // Ensure we call resize immediately to set everything up
         resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
     }
 
     @Override
     public void render(float delta) {
+        // --- SAFETY CHECK 1: Minimized Window ---
+        // If width/height is 0 (minimized), don't run render logic.
+        // This prevents crashes related to viewports and unprojection.
+        if (Gdx.graphics.getWidth() == 0 || Gdx.graphics.getHeight() == 0) return;
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.P)) {
             if (backgroundMusic.isPlaying()) {
@@ -179,9 +181,17 @@ public class GameScreen implements Screen {
         if (timePaused) delta = 0f;
         float worldDelta = timePaused ? 0f : delta;
 
-        gameWorld.update(worldDelta, this);
-        updateCamera(delta);
-        updateMouse();
+        // --- SAFETY CHECK 2: Logic Protection ---
+        // We wrap the update loop in try-catch so one bad frame logic
+        // doesn't crash the whole game application.
+        try {
+            gameWorld.update(worldDelta, this);
+            updateCamera(delta);
+            updateMouse();
+        } catch (Exception e) {
+            Gdx.app.log("GameScreen", "Critical Error in Update Loop (Caught safely): " + e.getMessage());
+            // Optional: e.printStackTrace();
+        }
 
         ScreenUtils.clear(Color.BLACK);
 
@@ -191,7 +201,6 @@ public class GameScreen implements Screen {
         renderLighting();
         batch.end();
 
-        // Draw UI using the locked 1080p projection
         batch.setProjectionMatrix(UICamera.combined);
         uiManager.render();
     }
@@ -235,9 +244,15 @@ public class GameScreen implements Screen {
     }
 
     private void updateMouse() {
-        Vector3 mouseScreen = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
-        // Using the world camera to find where the mouse is in the game level
+        // Basic null check safety
+        if (camera == null) return;
+
+        // Use the reused Vector3 to prevent GC
+        mouseScreen.set(Gdx.input.getX(), Gdx.input.getY(), 0);
+
+        // Unproject can sometimes return NaN if viewport is weird, but Render Check 1 handles that
         camera.unproject(mouseScreen);
+
         mouseWorldPos.set(mouseScreen.x, mouseScreen.y);
 
         Player player = gameWorld.player;
@@ -261,17 +276,14 @@ public class GameScreen implements Screen {
 
     @Override
     public void resize(int width, int height) {
-        // World viewport expands to fill the window
+        // --- SAFETY CHECK 3: Resize Guard ---
+        // If dimensions are invalid (0 or negative), ignore resize event
+        if (width <= 0 || height <= 0) return;
+
         viewport.update(width, height);
-
-        // UI viewport scales the 1920x1080 canvas to fit the window
         UIViewport.update(width, height, true);
-
-        // CHANGED: Position camera based on virtual coordinates, not pixel coordinates
         UICamera.position.set(VIRTUAL_WIDTH / 2f, VIRTUAL_HEIGHT / 2f, 0);
         UICamera.update();
-
-        // Forward virtual dimensions to UIManager
         uiManager.resize(width, height);
     }
 

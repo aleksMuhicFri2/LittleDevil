@@ -95,7 +95,7 @@ public class GameWorld {
     public enum EnemyType { TEMPLAR, NUN, PRIEST }
 
     public float score = 0f;
-    public int wave = 10;
+    public int wave = 1;
     public int combo = 0;
     public boolean gameWon = false;
 
@@ -141,10 +141,10 @@ public class GameWorld {
 
         // Altars
         bigAltar = new BigAltar(262, 200, "Spritesheets/bigAltarSpritesheet.png");
-        smallAltarTopLeft = new SmallAltar(66, 314, "Spritesheets/littleAltarSpritesheet.png", 10f, CollisionObjectsData.collisionObjects[0]);
-        smallAltarTopRight = new SmallAltar(498, 314, "Spritesheets/littleAltarSpritesheet.png", 10f, CollisionObjectsData.collisionObjects[1]);
-        smallAltarBotRight = new SmallAltar(498, 50, "Spritesheets/littleAltarSpritesheet.png", 10f, CollisionObjectsData.collisionObjects[2]);
-        smallAltarBotLeft = new SmallAltar(66, 50, "Spritesheets/littleAltarSpritesheet.png", 10f, CollisionObjectsData.collisionObjects[3]);
+        smallAltarTopLeft = new SmallAltar(66, 314, "Spritesheets/littleAltarSpritesheet.png", 7f, CollisionObjectsData.collisionObjects[0]);
+        smallAltarTopRight = new SmallAltar(498, 314, "Spritesheets/littleAltarSpritesheet.png", 7f, CollisionObjectsData.collisionObjects[1]);
+        smallAltarBotRight = new SmallAltar(498, 50, "Spritesheets/littleAltarSpritesheet.png", 7f, CollisionObjectsData.collisionObjects[2]);
+        smallAltarBotLeft = new SmallAltar(66, 50, "Spritesheets/littleAltarSpritesheet.png", 7f, CollisionObjectsData.collisionObjects[3]);
 
         // Candles
         candleSheet = new Texture("Spritesheets/candleSmallSpritesheet.png");
@@ -389,7 +389,20 @@ public class GameWorld {
 
     // Get tile type for player and enemies collision, altars, boosts...
     public boolean isTileType(int tileX, int tileY, TileType type) {
-        int tile = grid[tileY][tileX];
+        if (tileX < 0 || tileX >= widthInTiles || tileY < 0 || tileY >= heightInTiles) {
+
+            // OPTION A: Treat the void as a BLOCK (Walls prevent leaving map)
+            if (type == TileType.BLOCK || type == TileType.BLOCKENEMY) {
+                return true;
+            }
+
+            // OPTION B: Treat the void as empty for everything else
+            return false;
+        }
+        // --------------------
+
+        int tile = grid[tileY][tileX]; // Now safe to access!
+
         if (tile < 0) return false;
         return switch (type) {
             case BLOCK -> tile == 1 || tile == 2;

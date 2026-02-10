@@ -110,7 +110,6 @@ public abstract class Enemy {
         int targetY;
 
         if (player.isUnreachable(gameWorld)) {
-
             // Pick a random valid tile
             Random rand = new Random();
             int rx = startX;
@@ -127,9 +126,7 @@ public abstract class Enemy {
 
             targetX = rx;
             targetY = ry;
-
         } else {
-
             // Normal case: aim at player
             targetX = (int) (playerCenterX / gameWorld.tileSize);
             targetY = (int) (playerCenterY / gameWorld.tileSize);
@@ -335,9 +332,20 @@ public abstract class Enemy {
         int bottom = (int) ((testY + collisionOffsetY) / world.tileSize);
         int top = (int) ((testY + collisionOffsetY + collisionHeight) / world.tileSize);
 
-        for (int y = bottom; y <= top; y++)
-            for (int x = left; x <= right; x++)
-                if (world.isTileType(x, y, GameWorld.TileType.BLOCK) || world.isTileType(x, y, GameWorld.TileType.BLOCKENEMY)) return true;
+        if (left < 0 || right >= world.widthInTiles ||
+            bottom < 0 || top >= world.heightInTiles) {
+            return true;
+        }
+
+        // 2. TILE CHECK (Safe now because we checked bounds above)
+        for (int y = bottom; y <= top; y++) {
+            for (int x = left; x <= right; x++) {
+                if (world.isTileType(x, y, GameWorld.TileType.BLOCK) ||
+                    world.isTileType(x, y, GameWorld.TileType.BLOCKENEMY)) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
