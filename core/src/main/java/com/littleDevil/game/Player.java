@@ -119,7 +119,7 @@ public class Player {
     public int attackCount = 0; // For Lucky Threes
 
     public float bloodthirstyTimer = 0f;
-    public float bloodthirstyDuration = 5f;
+    public float bloodthirstyDuration = 3f;
     public float bloodThirstyBoost = 1f;
 
     public int luckyThreesDmgBonus = (int)(baseDamage * 0.3f);
@@ -148,6 +148,7 @@ public class Player {
     public float boostedAnimalBoostLength = 15f;
 
     public float comboGodBoostPerCombo = 0.03f;
+    public float currentComboMult = 1f;
 
     private final float[][] LIGHT_POSITIONS = {
         {122f, 204f}, // LightCenterLeft
@@ -189,9 +190,10 @@ public class Player {
         updateTimers(delta);
         updateNearbyEnemies(gameWorld);
 
-        float comboMultiplier = 1f;
         if (hasComboGod && gameWorld.combo > 0) {
-            comboMultiplier = (float) Math.pow(1f + comboGodBoostPerCombo, gameWorld.combo);
+            currentComboMult = (float) Math.pow(1f + comboGodBoostPerCombo, gameWorld.combo);
+        } else {
+            currentComboMult = 1f;
         }
 
         // Save position for collision resolution
@@ -354,9 +356,9 @@ public class Player {
             currentSpeed += (nearbyEnemies * scaredyCatBoostPerEnemy);
         }
 
-        if (hasComboGod) {
-            float comboMult = (float) Math.pow(1f + comboGodBoostPerCombo, gameWorld.combo);
-            currentSpeed *= comboMult;
+        if (hasComboGod && gameWorld.combo > 0) {
+            float speedBonus = (currentComboMult - 1f) * 0.7f;
+            currentSpeed *= (1f + speedBonus);
         }
 
         if (isOnStairs(gameWorld)) currentSpeed *= (2f / 3f);
@@ -616,25 +618,24 @@ public class Player {
     }
 
     public void loseHP(float amount) {
-        float comboMult = 1f;
-        if (hasComboGod && gameWorld.combo > 0) {
-            comboMult = (float) Math.pow(1f + comboGodBoostPerCombo, gameWorld.combo);
-        }
 
-        float effectiveLuck = luck * comboMult;
+        float effectiveLuck = MathUtils.clamp(luck * currentComboMult, 0f, 0.8f);
+
         if (MathUtils.random() < effectiveLuck) {
             gameWorld.spawnText(x, y + height, "DODGE!", Color.CYAN, 0.6f);
             return;
         }
 
+        // 2. MASOCHIST LOGIC
         if (hasMasochist) {
+            // Reuse the same effectiveLuck for the heal chance
             if (MathUtils.random() < effectiveLuck) {
                 heal((int)(amount / 3), gameWorld);
                 return;
             }
         }
 
-        // --- 2. VETERAN STACKING ---
+        // 3. VETERAN STACKING
         if (hasVeteran) {
             if (veteranStacks < MAX_VETERAN_STACKS) {
                 veteranStacks++;
@@ -643,15 +644,16 @@ public class Player {
             veteranTimer = VETERAN_DURATION;
         }
 
-        float effectiveArmor = armor * comboMult;
+        // 4. DAMAGE REDUCTION (ARMOR)
+        float effectiveArmor = armor * currentComboMult;
 
+        // Armor caps at 90% reduction
         float reductionPercentage = Math.min(effectiveArmor, 90f);
         float actualDamage = amount * (1f - (reductionPercentage / 100f));
 
-        // --- 4. APPLY DAMAGE ---
+        // 5. APPLY DAMAGE & DEATH CHECK
         currentHP -= actualDamage;
 
-        // --- 5. DEATH CHECK ---
         if (currentHP <= 0) {
             currentHP = 0;
             die(gameWorld);
@@ -753,9 +755,7 @@ public class Player {
         }
 
         // 4. Combo God (Stacking)
-        if (hasComboGod && gameWorld.combo > 0) {
-            totalMultiplier *= (float) Math.pow(1f + comboGodBoostPerCombo, gameWorld.combo);
-        }
+        totalMultiplier *= currentComboMult;
 
         // 5. Bloodthirsty (Timed)
         if (hasBloodthirsty) {
