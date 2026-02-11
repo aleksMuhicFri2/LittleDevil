@@ -25,7 +25,7 @@ public class Player {
     // --- STATS ---
     public float baseHP = 200f, currentHP = baseHP;
 
-    public float baseEnergy = 100f, currentEnergy = 99f;
+    public float baseEnergy = 100f, currentEnergy = 0f;
     public boolean isSuperActive = false;
     public float superDurationTimer = 0f;
     private float totalSuperDuration = 0f;
