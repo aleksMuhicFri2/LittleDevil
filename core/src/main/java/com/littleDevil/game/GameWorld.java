@@ -108,6 +108,9 @@ public class GameWorld {
     private float victoryTimer = 0f;
     private final float VICTORY_DELAY = 4.0f;
 
+    public int totalEnemiesInWave = 0;
+    public int enemiesKilledInWave = 0;
+
     public GameWorld(int mapWidth, int mapHeight, int tileSize, GameScreen gameScreen) {
         this.gameScreen = gameScreen;
         this.mapWidth = mapWidth;
@@ -671,8 +674,7 @@ public class GameWorld {
     public void startWave() {
         if (!canStartNextWave) return;
 
-        System.out.println(">>> WAVE " + wave + " HAS STARTED! <<<");
-        waveSound.play(0.1f);
+        waveSound.play(0.2f);
 
         waveActive = true;
         canStartNextWave = false;
@@ -682,6 +684,9 @@ public class GameWorld {
         // Clamp wave index (safety)
         int index = Math.min(wave - 1, WaveManager.waves.length - 1);
         Wave w = WaveManager.waves[index];
+
+        totalEnemiesInWave = w.templars + w.nuns + w.priests;
+        enemiesKilledInWave = 0;
 
         Spawner.Difficulty diffEnum;
         switch (difficulty) {
@@ -708,7 +713,14 @@ public class GameWorld {
                 prefs.flush();
             }
 
-            spawnText(player.x, player.y + 20, "STAGE CLEAR!", Color.BLACK, 2f);
+            spawnText(player.x, player.y + 20, "STAGE CLEAR!", Color.WHITE, 2f);
+
+            Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
+            int currentHighscore = prefs.getInteger("highscore", 0);
+            if ((int)score > currentHighscore) {
+                prefs.putInteger("highscore", (int)score);
+                prefs.flush();
+            }
 
             System.out.println(">>> VICTORY! <<<");
             return;

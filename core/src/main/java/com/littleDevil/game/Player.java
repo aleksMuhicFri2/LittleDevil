@@ -147,7 +147,7 @@ public class Player {
     public float boostedAnimalBoostPermanent = 0.1f;
     public float boostedAnimalBoostLength = 15f;
 
-    public float comboGodBoostPerCombo = 0.03f;
+    public float comboGodBoostPerCombo = 0.02f;
     public float currentComboMult = 1f;
 
     private final float[][] LIGHT_POSITIONS = {
@@ -357,7 +357,7 @@ public class Player {
         }
 
         if (hasComboGod && gameWorld.combo > 0) {
-            float speedBonus = (currentComboMult - 1f) * 0.7f;
+            float speedBonus = (currentComboMult - 1f) * 0.2f;
             currentSpeed *= (1f + speedBonus);
         }
 

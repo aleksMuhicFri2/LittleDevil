@@ -228,6 +228,8 @@ public abstract class Enemy {
         if (!isAlive) return;
         isAlive = false;
 
+        gameWorld.enemiesKilledInWave++;
+
         // 1. Basic World Updates
         gameWorld.score += this.scoreValue;
         gameWorld.spawnOrbs(this, player);

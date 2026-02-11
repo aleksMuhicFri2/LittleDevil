@@ -22,10 +22,10 @@ public class Spawner {
     private float priestInterval;
 
     public enum Difficulty {
-        EASY(1.5f),    // 50% slower spawns (Enemies trickle in)
-        HARD(1.0f),  // Standard speed
-        CRAZY(0.8f),    // 30% faster spawns (Chaos)
-        HELL(0.65f);
+        EASY(1.2f),    // 50% slower spawns (Enemies trickle in)
+        HARD(1.1f),  // Standard speed
+        CRAZY(0.9f),    // 30% faster spawns (Chaos)
+        HELL(0.8f);
 
         final float multiplier;
         Difficulty(float multiplier) {
@@ -151,5 +151,11 @@ public class Spawner {
         }
 
         gameWorld.enemies.add(newEnemy);
+    }
+
+    // --- FIX 2: Correct Queue Calculation ---
+    public int getRemainingInQueue() {
+        // Since we don't have a List, we sum the counters
+        return templarsRemaining + nunsRemaining + priestsRemaining;
     }
 }
