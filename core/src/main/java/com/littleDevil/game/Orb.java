@@ -16,13 +16,13 @@ public class Orb {
     private float pulseTime = 0f;
     private float pullTime = 0f;
 
-    public float lifetime = 20f;
+    public float lifetime = 15f;
     public OrbType type;
     public boolean isPulled = false;
 
-    private final float PULL_RADIUS = 35f;
-    private final float PULL_SPEED = 20f;
-    private final float MAX_PULL_SPEED = 350f;
+    private final float PULL_RADIUS = 50f;
+    private final float PULL_SPEED = 40f;
+    private final float MAX_PULL_SPEED = 1000f;
     private final float MAX_RANGE;
     private final float ORB_SPEED;
 
@@ -30,7 +30,7 @@ public class Orb {
     private TextureRegion currentFrame;
 
     private float spawnTime;
-    private final float PULL_DELAY = 0.5f;
+    private final float PULL_DELAY = 0.6f;
 
     private Random rand = new Random();
 

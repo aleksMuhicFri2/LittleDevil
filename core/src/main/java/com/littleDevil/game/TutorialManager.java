@@ -169,7 +169,7 @@ public class TutorialManager {
             case MOVEMENT:
                 if (isMovingInputPressed()) {
                     moveTimer += delta;
-                    if (moveTimer > 2.0f) {
+                    if (moveTimer > 1.5f) {
                         if (isInSafeZone()) advanceStep(TutorialStep.WALK_OUT);
                         else advanceStep(TutorialStep.ATTACK);
                     }
