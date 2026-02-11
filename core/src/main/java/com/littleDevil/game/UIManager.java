@@ -489,16 +489,15 @@ public class UIManager {
         // 1. Draw Background
         batch.draw(barsBackground, x, y, w, h);
 
-        // 2. Draw Health Bar (Standard Red - No Tint)
+        // 2. Draw Health Bar
         batch.draw(healthBar, x + 12f * scale, y + 23f * scale, 43f * scale * hpPercent, 5f * scale);
 
-        // 3. ENERGY BAR PULSE LOGIC (TINT ONLY THIS BAR)
+        // 3. ENERGY BAR PULSE LOGIC
+        Color originalColor = batch.getColor();
         if (player.isSuperActive) {
-            // ACTIVE: Fast Cyan/White Pulse
             float pulse = MathUtils.sin(Gdx.graphics.getFrameId() * 1f) * 0.3f + 0.6f;
             batch.setColor(0.2f * pulse, 1f, 1f, 1f);
         } else if (player.currentEnergy >= player.baseEnergy) {
-            // READY STATE: Rhythmic "Breathing" Pulse
             float pulse = MathUtils.sin(Gdx.graphics.getFrameId() * 0.15f) * 0.25f + 0.75f;
             batch.setColor(0f, 1f * pulse, 1f * pulse, 1f);
         } else {
@@ -506,47 +505,61 @@ public class UIManager {
         }
 
         batch.draw(energyBar, x + 57f * scale, y + 23f * scale, 43f * scale * enPercent, 5f * scale);
+        batch.setColor(Color.WHITE); // Reset immediately
 
-        // --- THE FIX ---
-        // Reset to pure white immediately so the following items don't flash
-        batch.setColor(Color.WHITE);
-        // ----------------
-
-        // 4. Draw XP Bar (Now clean)
+        // 4. Draw XP Bar
         batch.draw(xpBar, x + 18f * scale, y + 32f * scale, 76f * scale * xpPercent, 2f * scale);
 
-        // 5. Draw UI Frame (Now clean)
+        // 5. Draw UI Frame
         batch.draw(playerUI, x, y, w, h);
 
         // 6. Draw Text (HP & Energy)
-        tutorialFont.getData().setScale(0.5f);
-        tutorialFont.setColor(Color.BLACK);
         float offset = 0.3f;
 
-        // HP TEXT
+        // --- HP TEXT ---
+        tutorialFont.getData().setScale(0.5f);
+        tutorialFont.setColor(Color.BLACK);
         String hpText = (int)player.currentHP + "/" + (int)player.baseHP;
         layout.setText(tutorialFont, hpText);
         float hpX = x + (12f * scale) + (43f * scale)/2f - layout.width/2f;
         float hpY = y + (23f * scale) + (5f * scale)/2f + layout.height/2f + 1f;
         drawBoldText(hpText, hpX, hpY, offset);
 
-        // ENERGY TEXT
+        // --- ENERGY TEXT (WITH PRESS R & PULSE) ---
         String enText;
+        float energyTextScale = 0.5f;
+
         if (player.isSuperActive) {
             enText = String.format("SUPER: %.1fs", player.superDurationTimer);
-            tutorialFont.setColor(new Color(0f, 0.8f, 1f, 1f)); // Bright Cyan
+            tutorialFont.setColor(new Color(0f, 0.8f, 1f, 1f));
+        } else if (player.currentEnergy >= player.baseEnergy) {
+            // MODE: Super Ready
+            enText = "PRESS R";
+            tutorialFont.setColor(Color.WHITE);
+
+            // PULSE SCALE: Bounces scale between 0.45 and 0.65
+            float textPulse = MathUtils.sin(Gdx.graphics.getFrameId() * 0.04f) * 0.07f;
+            energyTextScale = 0.55f + textPulse;
         } else {
+            // MODE: Charging
             enText = (int)player.currentEnergy + "/" + (int)player.baseEnergy;
             tutorialFont.setColor(Color.BLACK);
         }
 
+        tutorialFont.getData().setScale(energyTextScale);
         layout.setText(tutorialFont, enText);
-        float enX = x + (57f * scale) + (43f * scale)/2f - layout.width/2f;
-        drawBoldText(enText, enX, hpY, offset);
 
-        // Final Cleanups
+        // Recalculate alignment because pulsing scale shifts the center
+        float enX = x + (57f * scale) + (43f * scale)/2f - layout.width/2f;
+        float enY = y + (23f * scale) + (5f * scale)/2f + layout.height/2f + 1f;
+
+        drawBoldText(enText, enX, enY, offset);
+
+        // Reset Font for other UI elements
         tutorialFont.getData().setScale(1.0f);
         tutorialFont.setColor(Color.WHITE);
+
+        // 7. Draw Level
         drawLevelText(y, h, scale);
     }
 
