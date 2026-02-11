@@ -25,7 +25,7 @@ public class Player {
     // --- STATS ---
     public float baseHP = 200f, currentHP = baseHP;
 
-    public float baseEnergy = 100f, currentEnergy = 0f;
+    public float baseEnergy = 100f, currentEnergy = 80f;
     public boolean isSuperActive = false;
     public float superDurationTimer = 0f;
     private float totalSuperDuration = 0f;
@@ -293,6 +293,11 @@ public class Player {
     }
 
     private void handleActions(float moveX, float moveY) {
+        // Trigger Super (Manual Activation)
+        if (!isSuperActive && currentEnergy >= baseEnergy && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+            activateSuper();
+        }
+
         // Trigger Dash
         if (!isDashing && dashTimer <= 0 && (moveX != 0 || moveY != 0) && Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
             performDash(moveX, moveY);
@@ -839,23 +844,18 @@ public class Player {
     }
 
     public void gainEnergy(float luck) {
-        // Constraint: Cannot gain energy while Super is active
         if (isSuperActive) return;
 
-        // 1-3 Energy based on RNG + Luck
         int amount = MathUtils.random(1, 5);
-
-        // Luck gives a chance for +1 extra
         if (MathUtils.random() < (luck * 0.5f)) {
             amount += 1;
         }
 
         currentEnergy += amount;
 
-        // Clamp and Check Activation
+        // Clamp to max, but DON'T auto-activate anymore
         if (currentEnergy >= baseEnergy) {
             currentEnergy = baseEnergy;
-            activateSuper();
         }
     }
 
@@ -931,7 +931,7 @@ public class Player {
             case SUPER:
                 if (superLevel < 7) {
                     superLevel++;
-                    baseEnergy -= 6;
+                    baseEnergy -= 8;
                     success = true;
                 }
                 break;

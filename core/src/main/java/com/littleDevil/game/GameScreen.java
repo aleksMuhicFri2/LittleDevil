@@ -206,17 +206,43 @@ public class GameScreen implements Screen {
     }
 
     private void renderLighting() {
+        // 1. GLOBAL SHADOW PASS
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-        batch.setColor(1f, 1f, 1f, darknessAlpha);
+
+        if (gameWorld.player.isSuperActive) {
+            // --- HUE SHIFT LOGIC ---
+            // Instead of adding light, we make the "Darkness" itself a deep Teal.
+            // This "drowns" the world in a blue hue without brightening the screen.
+            // (R=0.05, G=0.2, B=0.4 creates a deep oceanic teal/blue)
+            batch.setColor(0.05f, 0.2f, 0.4f, 0.7f);
+        } else {
+            // Standard black darkness
+            batch.setColor(0f, 0f, 0f, darknessAlpha);
+        }
+
+        // Draw the darkness texture (stretched over map)
         batch.draw(darknessTexture, 0, 0, gameWorld.mapWidth, gameWorld.mapHeight);
-        batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+
+        // 2. LIGHT SOURCES (Lamps/Candles)
+        batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE); // Additive blending
+
         for (Light light : LightData.lightObjects) {
             float drawX = light.x - light.width / 2f;
             float drawY = light.y - light.height / 2f;
-            batch.setColor(1f, 1f, 1f, light.alpha);
+
+            if (gameWorld.player.isSuperActive) {
+                // Make light sources glow Cyan to match the hue shift
+                batch.setColor(0.4f, 0.9f, 1f, light.alpha);
+            } else {
+                // Standard warm/white light
+                batch.setColor(1f, 1f, 1f, light.alpha);
+            }
+
             batch.draw(light.texture, drawX, drawY, light.width, light.height);
         }
-        batch.setColor(1f,1f,1f,1f);
+
+        // 3. RESET BATCH
+        batch.setColor(Color.WHITE);
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
     }
 

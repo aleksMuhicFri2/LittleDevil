@@ -39,6 +39,8 @@ public class TutorialManager {
         // --- PHASE 2: GAMEPLAY ---
         FIRST_WAVE("Survive the first wave!\nGood luck!"),
 
+        SUPER_READY("Super Ready!\nPress R to unleash power!"),
+
         // --- PHASE 3: DYNAMIC ALERTS (Post-Tutorial) ---
         SKILL_POINT("Level Up!\nSkill Point earned.\nGo to the center Altar."), // Placeholder text, overridden in render()
         AUGMENT_READY("Augment Available!\nReturn to the Altar."),
@@ -139,12 +141,19 @@ public class TutorialManager {
         boolean hasAugments = gameWorld.pendingAugments > 0;
         boolean hasSkillPoints = player.skillPoints > 0;
 
+        // --- NEW: Check if Super is charged and not already running ---
+        boolean superReady = player.currentEnergy >= player.baseEnergy && !player.isSuperActive;
+
         if (hasAugments || hasSkillPoints) {
             if (inSafeZone) {
                 currentStep = TutorialStep.ALTAR_UPGRADE;
             } else {
                 currentStep = hasAugments ? TutorialStep.AUGMENT_READY : TutorialStep.SKILL_POINT;
             }
+        }
+        else if (superReady) {
+            // Show this if no level-up menus are pending
+            currentStep = TutorialStep.SUPER_READY;
         }
         else if (player.isOnAltar(gameWorld)) {
             currentStep = TutorialStep.NO_UPGRADES;

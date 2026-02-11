@@ -489,43 +489,33 @@ public class UIManager {
         // 1. Draw Background
         batch.draw(barsBackground, x, y, w, h);
 
-        // 2. Draw Health Bar (Standard Red)
+        // 2. Draw Health Bar (Standard Red - No Tint)
         batch.draw(healthBar, x + 12f * scale, y + 23f * scale, 43f * scale * hpPercent, 5f * scale);
 
-        // ==========================================
-        // 3. DRAW ENERGY BAR (SUPER LOGIC)
-        // ==========================================
-        Color originalColor = batch.getColor();
-
+        // 3. ENERGY BAR PULSE LOGIC (TINT ONLY THIS BAR)
         if (player.isSuperActive) {
-            // PULSE EFFECT: Oscillates fast between Cyan and White
-            // frequency (0.2f) controls speed, +/- 0.4f controls intensity
+            // ACTIVE: Fast Cyan/White Pulse
             float pulse = MathUtils.sin(Gdx.graphics.getFrameId() * 1f) * 0.3f + 0.6f;
-
-            // Create a custom pulsing color (Cyan base -> Lighter Cyan)
             batch.setColor(0.2f * pulse, 1f, 1f, 1f);
-
         } else if (player.currentEnergy >= player.baseEnergy) {
-            // READY STATE: Solid Cyan Glow
-            batch.setColor(0f, 1f, 1f, 1f);
-
+            // READY STATE: Rhythmic "Breathing" Pulse
+            float pulse = MathUtils.sin(Gdx.graphics.getFrameId() * 0.15f) * 0.25f + 0.75f;
+            batch.setColor(0f, 1f * pulse, 1f * pulse, 1f);
         } else {
-            // NORMAL STATE: Standard Energy Color (Reset to white so texture color shows)
-            // If your texture is white, this draws it white.
-            // If you want it Blue by default: batch.setColor(Color.BLUE);
             batch.setColor(Color.WHITE);
         }
 
         batch.draw(energyBar, x + 57f * scale, y + 23f * scale, 43f * scale * enPercent, 5f * scale);
 
-        // RESET COLOR immediately so we don't tint the rest of the UI
-        batch.setColor(originalColor);
-        // ==========================================
+        // --- THE FIX ---
+        // Reset to pure white immediately so the following items don't flash
+        batch.setColor(Color.WHITE);
+        // ----------------
 
-        // 4. Draw XP Bar
+        // 4. Draw XP Bar (Now clean)
         batch.draw(xpBar, x + 18f * scale, y + 32f * scale, 76f * scale * xpPercent, 2f * scale);
 
-        // 5. Draw UI Frame
+        // 5. Draw UI Frame (Now clean)
         batch.draw(playerUI, x, y, w, h);
 
         // 6. Draw Text (HP & Energy)
@@ -533,20 +523,18 @@ public class UIManager {
         tutorialFont.setColor(Color.BLACK);
         float offset = 0.3f;
 
-        // --- HP TEXT ---
+        // HP TEXT
         String hpText = (int)player.currentHP + "/" + (int)player.baseHP;
         layout.setText(tutorialFont, hpText);
         float hpX = x + (12f * scale) + (43f * scale)/2f - layout.width/2f;
         float hpY = y + (23f * scale) + (5f * scale)/2f + layout.height/2f + 1f;
-
         drawBoldText(hpText, hpX, hpY, offset);
 
-        // --- ENERGY TEXT ---
-        // If super is active, show "SUPER!" or time left, otherwise show numbers
+        // ENERGY TEXT
         String enText;
         if (player.isSuperActive) {
             enText = String.format("SUPER: %.1fs", player.superDurationTimer);
-            tutorialFont.setColor(Color.CYAN); // Make text pop
+            tutorialFont.setColor(new Color(0f, 0.8f, 1f, 1f)); // Bright Cyan
         } else {
             enText = (int)player.currentEnergy + "/" + (int)player.baseEnergy;
             tutorialFont.setColor(Color.BLACK);
@@ -554,15 +542,11 @@ public class UIManager {
 
         layout.setText(tutorialFont, enText);
         float enX = x + (57f * scale) + (43f * scale)/2f - layout.width/2f;
-        // Same Y as HP
-
         drawBoldText(enText, enX, hpY, offset);
 
-        // Reset Font
+        // Final Cleanups
         tutorialFont.getData().setScale(1.0f);
         tutorialFont.setColor(Color.WHITE);
-
-        // 7. Draw Level
         drawLevelText(y, h, scale);
     }
 
