@@ -105,6 +105,9 @@ public class GameWorld {
     private float passiveScoreTimer = 0f;
     private final int[] PASSIVE_SCORE_RATES = { 1, 2, 3, 5 };
 
+    private float victoryTimer = 0f;
+    private final float VICTORY_DELAY = 4.0f;
+
     public GameWorld(int mapWidth, int mapHeight, int tileSize, GameScreen gameScreen) {
         this.gameScreen = gameScreen;
         this.mapWidth = mapWidth;
@@ -193,6 +196,15 @@ public class GameWorld {
             System.out.println("---------------------------------");
         }
          */
+
+        if (gameWon) {
+            victoryTimer += delta;
+
+            if (victoryTimer >= VICTORY_DELAY) {
+                gameScreen.game.setScreen(new StartScreen(gameScreen.game));
+                return; // Stop updating once we switch
+            }
+        }
 
         if (player.isOnAltar(this) && bigAltar.isFullyOpen()) {
 
@@ -685,26 +697,21 @@ public class GameWorld {
     }
 
     public void endWave() {
-        // --- VICTORY CONDITION (Wave 10 Beaten) ---
         if (wave == 10) {
             waveActive = false;
             gameWon = true;
-            waitingForNextWave = false; // Stop timer
+            waitingForNextWave = false;
 
-            // --- SAVE PROGRESS ---
-            // Key format: "difficulty_0_completed", "difficulty_1_completed", etc.
             String key = "difficulty_" + difficulty + "_completed";
-
-            // Only write if not already completed (saves a tiny bit of disk I/O)
             if (!prefs.getBoolean(key, false)) {
                 prefs.putBoolean(key, true);
-                prefs.flush(); // Force save to disk immediately
-                System.out.println("Difficulty " + difficulty + " marked as completed!");
+                prefs.flush();
             }
-            // ---------------------
+
+            spawnText(player.x, player.y + 20, "STAGE CLEAR!", Color.GOLD, 2f);
 
             System.out.println(">>> VICTORY! <<<");
-            return;
+            return; // Do nothing else, let update() take over
         }
 
         // --- NORMAL WAVE TRANSITION ---
