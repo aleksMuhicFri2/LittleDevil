@@ -708,10 +708,10 @@ public class GameWorld {
                 prefs.flush();
             }
 
-            spawnText(player.x, player.y + 20, "STAGE CLEAR!", Color.GOLD, 2f);
+            spawnText(player.x, player.y + 20, "STAGE CLEAR!", Color.BLACK, 2f);
 
             System.out.println(">>> VICTORY! <<<");
-            return; // Do nothing else, let update() take over
+            return;
         }
 
         // --- NORMAL WAVE TRANSITION ---
