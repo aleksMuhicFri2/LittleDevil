@@ -3,7 +3,6 @@ package com.littleDevil.game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.graphics.Color;
 
@@ -55,16 +54,12 @@ public class Nun extends Enemy {
 
         currentFrame = idleFrame;
 
-        // --- NEW STATS SYSTEM INTEGRATION ---
         UnitStats.StatsResult stats = UnitStats.get(UnitStats.UnitType.NUN, world.wave, world.difficulty);
-
         this.HP = stats.maxHp;
         this.damage = stats.damage;
         this.moveSpeed = stats.speed;
         this.intelligence = stats.intelligence;
         this.scoreValue = stats.score;
-        // ------------------------------------
-
         this.knockbackDecay = 150f;
 
         guaranteedOrbsCounts = new float [] {3, 1, 0};

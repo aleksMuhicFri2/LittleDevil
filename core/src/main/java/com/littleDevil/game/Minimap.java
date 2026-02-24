@@ -13,7 +13,7 @@ public class Minimap {
     private final Player player;
     private final ShapeRenderer shapeRenderer;
 
-    // --- CONFIGURATION ---
+    // --- CONFIG ---
     private final float SIZE = 300f;       // Size of the box (200x200)
     private final float MARGIN = 40f;      // Distance from bottom-right corner
     private final float BORDER_THICKNESS = 8f;
@@ -75,7 +75,6 @@ public class Minimap {
         // --- DRAW ENEMIES ---
         shapeRenderer.setColor(enemyColor);
         for (Enemy e : world.enemies) {
-            // Optimization: Only draw if alive
             if (e.HP > 0) {
                 float ex = mapX + (e.x * scaleX);
                 float ey = mapY + (e.y * scaleY);

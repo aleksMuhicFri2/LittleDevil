@@ -46,7 +46,6 @@ public class SmallAltar {
         // --- Phase 1: Charging up to frame 4 ---
         if (!isLoaded && !cycling) {
 
-            // LOGIC CHANGE: Only progress the charging animation if the wave is active!
             if (gameWorld.waveActive) {
                 animationTimer += delta;
 
@@ -66,11 +65,9 @@ public class SmallAltar {
 
         // --- Phase 2: Active cycling (frames 4–8) ---
         else if (cycling) {
-            // We continue animating the "glow" (cycling frames) even if wave stops
             animationTimer += delta;
 
             if (!boostSpawned) {
-                // LOGIC CHANGE: Only spawn the actual item if the wave is active
                 if (gameWorld.waveActive) {
 
                     double r = Math.random();
@@ -81,8 +78,6 @@ public class SmallAltar {
                     else if (r < 0.75) type = Boost.Type.REGEN;
                     else type = Boost.Type.SUPER;
 
-                    // WARNING: Creating new Textures in update() causes memory leaks!
-                    // Ideally, load these 4 textures once in the constructor.
                     Texture texture;
                     switch (type) {
                         case SPEED -> texture = new Texture("MapAssets/movementBoost.png");
@@ -93,7 +88,6 @@ public class SmallAltar {
                     }
 
                     boost = new Boost(type, x + 14, y + 26, texture);
-                    manageLight(0.7f);
                     boostSpawned = true;
                 }
             }
@@ -113,7 +107,6 @@ public class SmallAltar {
             // Player Pickup Logic
             if (boost != null && !boost.pickedUp && player.isOnBoost(boost)) {
                 boost.applyEffect(player, gameWorld);
-                manageLight(0f);
                 resetAltar();
             }
         }
@@ -135,16 +128,6 @@ public class SmallAltar {
         if (boost != null && !boost.pickedUp) {
             boost.render(batch);
         }
-    }
-
-    private void manageLight(float alpha) {
-        /*
-        LightData.lightObjects[19].alpha = alpha;
-        LightData.lightObjects[20].alpha = alpha;
-        LightData.lightObjects[21].alpha = alpha;
-        LightData.lightObjects[22].alpha = alpha;
-
-         */
     }
 
     public void dispose() {

@@ -16,9 +16,6 @@ public abstract class Enemy {
     public float width = 32f, height = 32f;
 
     // Stats that all Enemies have
-    public float BASE_HP = 100f;
-    public float BASE_DAMAGE = 20f;
-
     protected float HP;
     protected float damage;
     public int scoreValue = 0;
@@ -42,6 +39,7 @@ public abstract class Enemy {
     protected Texture spriteSheet;
     protected TextureRegion currentFrame;
 
+    // State
     public boolean isAlive = true;
 
     // Hit FX
@@ -73,7 +71,7 @@ public abstract class Enemy {
 
     }
 
-    // Abstract function every Enemy needs to implement
+    // Abstract function
     public abstract void update(float delta, Player player, GameWorld gameWorld, GameScreen gameScreen);
 
     // Updates the path for enemies or reduces time until its updated
@@ -139,7 +137,7 @@ public abstract class Enemy {
             oldNextNode = currentPath.get(currentTargetIndex);
         }
 
-        // Compute the path
+        // Compute path
         currentPath = pathfinder.findPath(startX, startY, targetX, targetY);
 
         if (currentPath != null && !currentPath.isEmpty()) {
@@ -230,12 +228,12 @@ public abstract class Enemy {
 
         gameWorld.enemiesKilledInWave++;
 
-        // 1. Basic World Updates
+        // Basic World Updates
         gameWorld.score += this.scoreValue;
         gameWorld.spawnOrbs(this, player);
         player.gainEnergy(player.luck);
 
-        // 2. Global Player Buffs
+        // Global Player Buffs
         if (player.hasBloodthirsty) {
             player.bloodthirstyTimer = player.bloodthirstyDuration;
             player.bloodThirstyBoost = 1.5f;
@@ -339,7 +337,7 @@ public abstract class Enemy {
             return true;
         }
 
-        // 2. TILE CHECK (Safe now because we checked bounds above)
+        // TILE CHECK
         for (int y = bottom; y <= top; y++) {
             for (int x = left; x <= right; x++) {
                 if (world.isTileType(x, y, GameWorld.TileType.BLOCK) ||
@@ -376,7 +374,6 @@ public abstract class Enemy {
             moveX = (moveX / len) * repelStrength * Gdx.graphics.getDeltaTime();
             moveY = (moveY / len) * repelStrength * Gdx.graphics.getDeltaTime();
 
-            // collision-safe movement
             moveWithCollision(moveX, moveY, world);
         }
     }

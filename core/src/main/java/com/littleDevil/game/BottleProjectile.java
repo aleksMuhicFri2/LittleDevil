@@ -112,7 +112,7 @@ public class BottleProjectile {
                 if (breakFrame == 4) {
                     stickTimer += delta;
                     if (stickTimer >= 2f) {
-                        alpha -= delta * 1f;
+                        alpha -= delta;
                         if (alpha <= 0f) {
                             alpha = 0f;
                             state = State.DONE;
@@ -145,7 +145,7 @@ public class BottleProjectile {
         float bottom = y - hitboxHeight / 2f;
         float top = y + hitboxHeight / 2f;
 
-        // Player collision box (REAL one)
+        // Player collision box
         float pLeft   = player.x + player.collisionOffsetX;
         float pRight  = pLeft + player.collisionWidth;
         float pBottom = player.y + player.collisionOffsetY;

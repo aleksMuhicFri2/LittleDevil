@@ -86,7 +86,7 @@ public class TutorialManager {
         return tex;
     }
 
-    // --- CLEAN HELPER ---
+    // Helper
     private boolean isInSafeZone() {
         return player.isOnAltar(gameWorld) || player.isUnreachable(gameWorld);
     }
@@ -135,13 +135,12 @@ public class TutorialManager {
         }
     }
 
-    // --- LOGIC A: Post-Tutorial Smart Tips ---
+    // Post tutorial smart tips
     private void updateDynamicEvents() {
         boolean inSafeZone = isInSafeZone();
         boolean hasAugments = gameWorld.pendingAugments > 0;
         boolean hasSkillPoints = player.skillPoints > 0;
 
-        // --- NEW: Check if Super is charged and not already running ---
         boolean superReady = player.currentEnergy >= player.baseEnergy && !player.isSuperActive;
 
         if (hasAugments || hasSkillPoints) {
@@ -152,7 +151,6 @@ public class TutorialManager {
             }
         }
         else if (superReady) {
-            // Show this if no level-up menus are pending
             currentStep = TutorialStep.SUPER_READY;
         }
         else if (player.isOnAltar(gameWorld)) {
@@ -239,7 +237,6 @@ public class TutorialManager {
 
         String text = currentStep.text;
 
-        // --- NEW: DYNAMIC TEXT OVERRIDE ---
         // If we are showing the skill point step, construct the text dynamically
         if (currentStep == TutorialStep.SKILL_POINT) {
             // Check if plural or singular is needed

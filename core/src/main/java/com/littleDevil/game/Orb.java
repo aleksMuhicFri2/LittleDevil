@@ -58,15 +58,14 @@ public class Orb {
         spawnTime += delta;
         pulseTime += delta;
 
-        // --- EMERGENCY UNSTUCK LOGIC ---
+        // unstuck logic
         if (isBlocked(x, y, world)) {
             Vector2 escapeDir = new Vector2(player.x - x, player.y - y).nor();
             // Move slowly towards player to escape wall
             x += escapeDir.x * 60f * delta;
             y += escapeDir.y * 60f * delta;
-            return; // Skip normal physics this frame
+            return;
         }
-        // -------------------------------
 
         float playerLeft = player.x + player.collisionOffsetX;
         float playerRight = playerLeft + player.collisionWidth;
@@ -94,8 +93,7 @@ public class Orb {
             isPulled = false;
         }
 
-        // --- BOUNCE PHYSICS ---
-        // Predict X movement
+        // predict X and Y movement
         float nextX = x + velocity.x * delta;
         if (isBlocked(nextX, y, world)) {
             velocity.x = -velocity.x * 0.8f; // Bounce X
@@ -103,7 +101,6 @@ public class Orb {
             x = nextX;
         }
 
-        // Predict Y movement
         float nextY = y + velocity.y * delta;
         if (isBlocked(x, nextY, world)) {
             velocity.y = -velocity.y * 0.8f; // Bounce Y

@@ -47,7 +47,6 @@ public class GameScreen implements Screen {
     // Mouse tracking
     private final Vector2 mouseWorldPos = new Vector2();
     private final Vector2 mouseDir = new Vector2();
-    // Safety: Moved here to avoid garbage collection creation every frame
     private final Vector3 mouseScreen = new Vector3();
     public static float mouseAngle = 0f;
 
@@ -166,8 +165,6 @@ public class GameScreen implements Screen {
     @Override
     public void render(float delta) {
         // --- SAFETY CHECK 1: Minimized Window ---
-        // If width/height is 0 (minimized), don't run render logic.
-        // This prevents crashes related to viewports and unprojection.
         if (Gdx.graphics.getWidth() == 0 || Gdx.graphics.getHeight() == 0) return;
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.P)) {
@@ -182,15 +179,12 @@ public class GameScreen implements Screen {
         float worldDelta = timePaused ? 0f : delta;
 
         // --- SAFETY CHECK 2: Logic Protection ---
-        // We wrap the update loop in try-catch so one bad frame logic
-        // doesn't crash the whole game application.
         try {
             gameWorld.update(worldDelta, this);
             updateCamera(delta);
             updateMouse();
         } catch (Exception e) {
             Gdx.app.log("GameScreen", "Critical Error in Update Loop (Caught safely): " + e.getMessage());
-            // Optional: e.printStackTrace();
         }
 
         ScreenUtils.clear(Color.BLACK);
@@ -211,9 +205,6 @@ public class GameScreen implements Screen {
 
         if (gameWorld.player.isSuperActive) {
             // --- HUE SHIFT LOGIC ---
-            // Instead of adding light, we make the "Darkness" itself a deep Teal.
-            // This "drowns" the world in a blue hue without brightening the screen.
-            // (R=0.05, G=0.2, B=0.4 creates a deep oceanic teal/blue)
             batch.setColor(0.05f, 0.2f, 0.4f, 0.7f);
         } else {
             // Standard black darkness
@@ -241,7 +232,7 @@ public class GameScreen implements Screen {
             batch.draw(light.texture, drawX, drawY, light.width, light.height);
         }
 
-        // 3. RESET BATCH
+        // 3. RESET
         batch.setColor(Color.WHITE);
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
     }
@@ -270,13 +261,9 @@ public class GameScreen implements Screen {
     }
 
     private void updateMouse() {
-        // Basic null check safety
         if (camera == null) return;
 
-        // Use the reused Vector3 to prevent GC
         mouseScreen.set(Gdx.input.getX(), Gdx.input.getY(), 0);
-
-        // Unproject can sometimes return NaN if viewport is weird, but Render Check 1 handles that
         camera.unproject(mouseScreen);
 
         mouseWorldPos.set(mouseScreen.x, mouseScreen.y);
@@ -303,7 +290,6 @@ public class GameScreen implements Screen {
     @Override
     public void resize(int width, int height) {
         // --- SAFETY CHECK 3: Resize Guard ---
-        // If dimensions are invalid (0 or negative), ignore resize event
         if (width <= 0 || height <= 0) return;
 
         viewport.update(width, height);

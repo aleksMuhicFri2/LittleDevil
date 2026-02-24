@@ -51,15 +51,15 @@ public class GameWorld {
     public float TIME_BETWEEN_WAVES = 5f;
     public boolean waitingForNextWave = false;
 
-    //private float statPrintTimer = 0f;
+    //private float statPrintTimer = 0f; - for debug
 
-    // --- NEW SPAWNER ---
-    // All individual timers and counters have been moved to Spawner.java
+    // enemy spawner
     public Spawner spawner;
-    // -------------------
 
+    // cannot start before this is true
     public boolean basicTutorialDone = false;
 
+    // augments
     public AugmentManager augmentManager;
     public int pendingAugments = 0;
 
@@ -75,7 +75,7 @@ public class GameWorld {
     public Texture explosionTexture = new Texture("Spritesheets/explosionAnimation.png");
     public Texture healingTexture = new Texture("Spritesheets/healingAnimation.png");
 
-    // Pathing
+    // Path finding
     private final float PATH_UPDATE_INTERVAL = 1f;
 
     // Tile Types
@@ -99,15 +99,18 @@ public class GameWorld {
     public int combo = 0;
     public boolean gameWon = false;
 
+    // player prefs
     Preferences prefs = Gdx.app.getPreferences("MyGameInfo");
     public int difficulty = prefs.getInteger("difficulty", 0);
 
+    // difficulty changes
     private float passiveScoreTimer = 0f;
     private final int[] PASSIVE_SCORE_RATES = { 1, 2, 3, 5 };
 
     private float victoryTimer = 0f;
     private final float VICTORY_DELAY = 4.0f;
 
+    // wave variables
     public int totalEnemiesInWave = 0;
     public int enemiesKilledInWave = 0;
 
@@ -124,25 +127,28 @@ public class GameWorld {
     public void initialize() {
 
         basicTutorialDone = false;
+
         // Map
         mapTexture = new Texture("MapAssets/map.png");
 
-        // NEW: Load orb texture once
+        // Orb texture
         orbSheet = new Texture("Spritesheets/xpOrbs.png");
         orbPickupSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/xpPickupSound.mp3"));
 
         // Player
-        player = new Player(302, 236, "Spritesheets/playerSpriteSheet.png", this);
+        player = new Player(302, 236, "Spritesheets/playerSpritesheet.png", this);
 
         // Enemies
         enemies = new ArrayList<>();
 
-        augmentManager = new AugmentManager(this, player);
+        // init augment
+        augmentManager = new AugmentManager(player);
 
         // Wait for trigger from tutorial
         waitingForNextWave = false;
         canStartNextWave = false;
 
+        // spawner
         spawner = new Spawner(this);
 
         // Altars
@@ -184,6 +190,7 @@ public class GameWorld {
 
     // update all the logic
     public void update(float delta, GameScreen gameScreen) {
+
         // 1. STAT PRINTER (Keep this outside the pause so it still prints in menus if needed)
         /*
         statPrintTimer += delta;
@@ -205,7 +212,7 @@ public class GameWorld {
 
             if (victoryTimer >= VICTORY_DELAY) {
                 gameScreen.game.setScreen(new StartScreen(gameScreen.game));
-                return; // Stop updating once we switch
+                return;
             }
         }
 
@@ -229,10 +236,9 @@ public class GameWorld {
 
         player.update(delta, this);
 
-        // 4. Process Spawn Logic (DELEGATED TO SPAWNER)
+        // 4. Process Spawn Logic FROM SPAWNER
         if (waveActive && !player.isOnAltar(this) && !player.isUnreachable(this)) {
 
-            // Score logic (kept here or moved to spawner, up to you)
             passiveScoreTimer += delta;
             if (passiveScoreTimer >= 1f) {
                 passiveScoreTimer = 0f;
@@ -240,19 +246,11 @@ public class GameWorld {
                 score += PASSIVE_SCORE_RATES[diffIndex];
             }
 
-            // UPDATE SPAWNER
             spawner.update(delta);
         }
 
         // 5. Wave Cooldown Logic
         if (waitingForNextWave) {
-            int previousSeconds = (int) Math.ceil(TIME_BETWEEN_WAVES - nextWaveTimer);
-            nextWaveTimer += delta;
-            int currentSeconds = (int) Math.ceil(TIME_BETWEEN_WAVES - nextWaveTimer);
-
-            if (currentSeconds != previousSeconds && currentSeconds >= 0) {
-                System.out.println("Wave " + wave + " starting in: " + currentSeconds + "s");
-            }
 
             if (nextWaveTimer >= TIME_BETWEEN_WAVES) {
                 waitingForNextWave = false;
@@ -358,6 +356,7 @@ public class GameWorld {
                 ));
             }
         }
+
         // Enemy objects
         for (Enemy e : enemies) {
             renderList.add(createRenderEntity(e.getCurrentFrame(), e.x, e.y, e.alpha));
@@ -406,17 +405,15 @@ public class GameWorld {
     public boolean isTileType(int tileX, int tileY, TileType type) {
         if (tileX < 0 || tileX >= widthInTiles || tileY < 0 || tileY >= heightInTiles) {
 
-            // OPTION A: Treat the void as a BLOCK (Walls prevent leaving map)
+            // BLOCK
             if (type == TileType.BLOCK || type == TileType.BLOCKENEMY) {
                 return true;
             }
-
-            // OPTION B: Treat the void as empty for everything else
             return false;
         }
         // --------------------
 
-        int tile = grid[tileY][tileX]; // Now safe to access!
+        int tile = grid[tileY][tileX];
 
         if (tile < 0) return false;
         return switch (type) {
@@ -442,7 +439,7 @@ public class GameWorld {
         }
     }
 
-    // Function for rendering the debug objects
+    // Function for rendering the debug objects and hitboxes
     private void renderDebug(boolean draw, SpriteBatch batch) {
         if(!draw) return;
         for(Enemy e: enemies) {
@@ -468,7 +465,7 @@ public class GameWorld {
                     case 5     -> batch.setColor(0.2f, 0.4f, 1f, 0.35f);   // STAIRS → blue
                     case 6     -> batch.setColor(1f, 0.5f, 0f, 0.35f);     // BLOCKENEMY → orange
                     default    -> {
-                        continue;                                // EMPTY → skip drawing
+                        continue;                                                     // EMPTY → skip drawing
                     }
                 }
 
@@ -500,24 +497,6 @@ public class GameWorld {
 
     public void spawnText(float x, float y, String message, Color color, float scale) {
         damageTexts.add(new DamageText(x, y, message, 1f, damageFont, color, scale));
-    }
-
-    public void dispose() {
-        mapTexture.dispose();
-        candleSheet.dispose();
-
-        // NEW: Dispose the orb sheet
-        if (orbSheet != null) orbSheet.dispose();
-
-        if (player != null) player.dispose();
-        for (Enemy e : enemies) e.dispose();
-        bigAltar.dispose();
-        smallAltarTopLeft.dispose();
-        smallAltarTopRight.dispose();
-        smallAltarBotRight.dispose();
-        smallAltarBotLeft.dispose();
-        augmentManager.dispose();
-        orbPickupSound.dispose();
     }
 
     // Class that implements sortable entities for drawing
@@ -555,7 +534,7 @@ public class GameWorld {
         enemiesToRemove.add(enemy);
 
         if (waveActive) {
-            enemiesAlive--; // Keeps UI accurate
+            enemiesAlive--;
         }
     }
 
@@ -634,7 +613,7 @@ public class GameWorld {
         }
     }
 
-    // NEW HELPER: Handles wall checking before spawn to prevent instant sticking
+    // Handles wall checking before spawn to prevent instant sticking
     private void spawnSingleOrb(Enemy enemy, float backAngle, Orb.OrbType type, float baseSpeed, float randSpeed, Random rand, Player player) {
         float offset = ((rand.nextFloat() - 0.5f) * (float) Math.PI);
         float angle = backAngle + offset;
@@ -644,8 +623,7 @@ public class GameWorld {
         float vy = (float) Math.sin(angle) * speed;
 
         // PREDICTIVE SPAWN LOGIC:
-        // If the intended "scatter" direction hits a wall immediately (within 20px),
-        // FORCE the orb to fly towards the player instead.
+
         float checkDist = 20f;
         float futureX = enemy.x + (vx > 0 ? checkDist : -checkDist);
         float futureY = enemy.y + (vy > 0 ? checkDist : -checkDist);
@@ -656,7 +634,6 @@ public class GameWorld {
         if (blockedX || blockedY) {
             // Blocked! Shoot towards player.
             float angleToPlayer = (float) Math.atan2(player.y - enemy.y, player.x - enemy.x);
-            // Add slight randomness so they don't stack perfectly line
             angleToPlayer += (rand.nextFloat() - 0.5f) * 0.5f;
 
             vx = (float) Math.cos(angleToPlayer) * speed;
@@ -681,7 +658,7 @@ public class GameWorld {
         combo = 0;
         timeSinceLastHit = 0f;
 
-        // Clamp wave index (safety)
+        // Clamp wave index
         int index = Math.min(wave - 1, WaveManager.waves.length - 1);
         Wave w = WaveManager.waves[index];
 
@@ -697,7 +674,6 @@ public class GameWorld {
             default -> diffEnum = Spawner.Difficulty.HARD;
         }
 
-        // Pass the enum to the spawner
         spawner.startWave(wave, w, diffEnum);
     }
 
@@ -722,11 +698,10 @@ public class GameWorld {
                 prefs.flush();
             }
 
-            System.out.println(">>> VICTORY! <<<");
+            //System.out.println(">>> VICTORY! <<<");
             return;
         }
 
-        // --- NORMAL WAVE TRANSITION ---
         waveActive = false;
         waitingForNextWave = true;
         nextWaveTimer = 0f;
@@ -738,5 +713,20 @@ public class GameWorld {
         float randomVolume = 0.05f + (float)Math.random() * 0.02f;
         float randomPitch = 0.8f + (float)Math.random() * 0.5f;
         orbPickupSound.play(randomVolume, randomPitch, 0f);
+    }
+
+    public void dispose() {
+        mapTexture.dispose();
+        candleSheet.dispose();
+        if (orbSheet != null) orbSheet.dispose();
+        if (player != null) player.dispose();
+        for (Enemy e : enemies) e.dispose();
+        bigAltar.dispose();
+        smallAltarTopLeft.dispose();
+        smallAltarTopRight.dispose();
+        smallAltarBotRight.dispose();
+        smallAltarBotLeft.dispose();
+        augmentManager.dispose();
+        orbPickupSound.dispose();
     }
 }

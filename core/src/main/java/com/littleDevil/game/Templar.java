@@ -6,7 +6,6 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 
 public class Templar extends Enemy {
@@ -108,7 +107,7 @@ public class Templar extends Enemy {
                 applyKnockback(delta, gameWorld);
                 updateAnimation(delta, player);
 
-                return; // Skip ALL attack logic
+                return;
             }
 
             if (bashCooldownTimer > 0) bashCooldownTimer -= delta;

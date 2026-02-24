@@ -17,6 +17,7 @@ public class Player {
     // --- POSITIONS & DIMENSIONS ---
     public float x, y, prevX, prevY;
     public int width = 32, height = 32;
+
     // Collision offsets
     public int collisionOffsetX = -4, collisionOffsetY = -16;
     public int collisionWidth = 8, collisionHeight = 4;
@@ -49,9 +50,6 @@ public class Player {
     // --- TIMERS & MULTIPLIERS ---
     private float speedMultiplier = 1f, speedBoostTimer = 0f;
     public float damageMultiplier = 1f, damageBoostTimer = 0f;
-
-
-    // (Removed unused lifesteal variables to clean up, unless you plan to use them soon)
 
     // --- COMBAT STATE --
     public boolean isAttacking = false;
@@ -100,7 +98,6 @@ public class Player {
     public enum StatType { ATTACK, AGILITY, DEFENSE, LUCK, SUPER }
 
     // --- AUGMENT FLAGS ---
-    // These match the flags set in AugmentManager
     public boolean hasVampiric = false;
     public boolean hasBloodthirsty = false;
     public boolean hasLuckyThrees = false;
@@ -159,7 +156,7 @@ public class Player {
         {560f, 352f}, // LampTopRight
         {560f, 32f},  // LampBotRight
         {20f, 32f}    // LampBotLeft
-    };
+    }; // for vampiric purposes
 
 
     public Player(float startX, float startY, String spriteSheetPath, GameWorld gameWorld) {
@@ -230,12 +227,9 @@ public class Player {
                 flashTimer += delta;
                 if (flashTimer > maxFlashTime) flashTimer = maxFlashTime;
             } else if (!isAttacking) {
-                // Reset if stopped (but don't reset here if attacking, handle that in performAttack)
                 flashTimer = 0f;
             }
 
-            // Calculate Speed Multiplier (Linear: 1x at 0s, 3x at 8s)
-            // Formula: 1 + (Progress * 2)
             float progress = flashTimer / maxFlashTime;
             flashSpeedMult = 1f + (progress * 2f);
         }
@@ -349,7 +343,6 @@ public class Player {
         }
 
         // Priority 3: Normal Walking
-        // Combine base multipliers with Flash multiplier
         float currentSpeed = baseSpeed * speedMultiplier * flashMult;
 
         if (hasScaredyCat) {
@@ -440,11 +433,9 @@ public class Player {
             speedMult = 0.5f; // 50% multiplier = 2x Speed
         }
 
-        // 2. Set Cooldown (When can I click again?)
+        // 2. Set Cooldown
         attackCooldownTimer = baseAttackSpeed * speedMult;
 
-        // 3. Set Animation Duration (How fast does the sword visually swing?)
-        // FIX: We scale this too, so the animation matches the fast cooldown!
         attackTimer = attackDuration * speedMult;
 
         // --- THE FLASH LOGIC ---
@@ -706,7 +697,6 @@ public class Player {
             float lightX = light[0];
             float lightY = light[1];
 
-            // Standard distance formula: sqrt((x2-x1)^2 + (y2-y1)^2)
             float dist = (float) Math.sqrt(
                 Math.pow(centerX - lightX, 2) + Math.pow(centerY - lightY, 2)
             );
@@ -853,7 +843,6 @@ public class Player {
 
         currentEnergy += amount;
 
-        // Clamp to max, but DON'T auto-activate anymore
         if (currentEnergy >= baseEnergy) {
             currentEnergy = baseEnergy;
         }
@@ -872,7 +861,7 @@ public class Player {
 
     private void endSuper() {
         isSuperActive = false;
-        currentEnergy = 0f; // Reset energy to 0
+        currentEnergy = 0f;
         gameWorld.spawnText(x, y + height + 10, "SUPER ENDED", Color.GRAY, 0.8f);
     }
 

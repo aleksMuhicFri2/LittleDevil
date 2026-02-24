@@ -37,9 +37,7 @@ public class Spawner {
         this.gameWorld = gameWorld;
     }
 
-    /**
-     * Calculates spawn intervals so all enemies finish spawning roughly at the same time.
-     */
+    // enemies finish spawning at the same time
     public void startWave(int waveNumber, Wave waveData, Difficulty difficulty) {
         this.templarsRemaining = waveData.templars;
         this.nunsRemaining = waveData.nuns;
@@ -51,23 +49,20 @@ public class Spawner {
         // Calculate intervals
         if (templarsRemaining > 0) {
             templarInterval = targetWaveDuration / templarsRemaining;
-            // FIX: Set timer TO the interval so it spawns immediately
             templarTimer = templarInterval;
         }
 
         if (nunsRemaining > 0) {
             nunInterval = targetWaveDuration / nunsRemaining;
-            // FIX: Set timer TO the interval
             nunTimer = nunInterval;
         }
 
         if (priestsRemaining > 0) {
             priestInterval = targetWaveDuration / priestsRemaining;
-            // FIX: Set timer TO the interval
             priestTimer = priestInterval;
         }
 
-        System.out.println("Wave " + waveNumber + " Started (" + difficulty + ")");
+        //System.out.println("Wave " + waveNumber + " Started (" + difficulty + ")");
     }
 
     public void update(float delta) {
@@ -151,11 +146,5 @@ public class Spawner {
         }
 
         gameWorld.enemies.add(newEnemy);
-    }
-
-    // --- FIX 2: Correct Queue Calculation ---
-    public int getRemainingInQueue() {
-        // Since we don't have a List, we sum the counters
-        return templarsRemaining + nunsRemaining + priestsRemaining;
     }
 }

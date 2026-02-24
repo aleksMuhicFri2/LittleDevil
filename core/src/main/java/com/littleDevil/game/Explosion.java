@@ -13,7 +13,7 @@ public class Explosion {
     private int currentFrame = 0;
 
     private float frameTimer = 0f;
-    private final float FRAME_INTERVAL = 0.07f;  // ~22 FPS, good for explosions
+    private final float FRAME_INTERVAL = 0.07f;
 
     public float scale = 2.5f; // looks nicer than 1.8, tweak if needed
 
@@ -39,7 +39,6 @@ public class Explosion {
 
             if (currentFrame >= frames.length) {
                 done = true;
-                return;
             }
         }
     }

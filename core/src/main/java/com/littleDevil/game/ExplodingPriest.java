@@ -3,16 +3,14 @@ package com.littleDevil.game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.MathUtils;
 
 public class ExplodingPriest extends Enemy {
 
     private enum PriestState { APPROACH, CHARGING, EXPLODING }
     private PriestState state = PriestState.APPROACH;
 
-    private TextureRegion frame1, frame2, flashFrame;
+    private final TextureRegion frame1, frame2, flashFrame;
     private TextureRegion currentPriestFrame;
 
     private boolean facingLeft = false;
@@ -27,7 +25,7 @@ public class ExplodingPriest extends Enemy {
     private final float BLINK_INTERVAL_2 = 0.50f;
     private float currentBlinkInterval = 0f;
 
-    // Radii
+    // Explosion variables
     private final float TRIGGER_DISTANCE = 20f;
     private final float EXPLOSION_RADIUS = 50f;
     private final float CHASE_RESET_DISTANCE = 35f;
@@ -78,7 +76,6 @@ public class ExplodingPriest extends Enemy {
         updateFacing(player);
         updateAnimation(delta);
 
-        // Use the standard attack handler we refined
         handleAttack(player, screen, gameWorld);
     }
 
@@ -152,7 +149,7 @@ public class ExplodingPriest extends Enemy {
     private void die(Player player, GameWorld gameWorld) {
         if (state == PriestState.CHARGING) diedWhileCharging = true;
 
-        gameWorld.removeEnemy(this); // FIX: Instant disappearance
+        gameWorld.removeEnemy(this);
         onDeath(player, gameWorld);
     }
 

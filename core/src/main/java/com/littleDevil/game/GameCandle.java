@@ -10,7 +10,7 @@ public class GameCandle {
     private float timer = 0f;
     private int frameIndex = 1; // Start at frame[1] (the second frame)
     private final float x, y;
-    private final float candleScale = 1f; // Optional: adjust if needed
+    private final float candleScale = 1f;
 
     public GameCandle(Texture sheet, float x, float y) {
         TextureRegion[][] tmp = TextureRegion.split(sheet, 16, 16);

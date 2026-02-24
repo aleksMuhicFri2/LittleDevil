@@ -61,7 +61,6 @@ public class UnitStats {
         float scoreMult = DIFF_SCORE_MULT[difficultyIndex];
 
         // 1. Calculate HP
-        // Formula: (Base + (Wave-1 * Growth)) * DifficultyMultiplier
         result.maxHp = (type.baseHp + ((wave - 1) * type.hpPerWave)) * hpMult;
 
         // 2. Calculate Damage
@@ -71,7 +70,6 @@ public class UnitStats {
         result.speed = type.baseSpeed * spdMult;
 
         // 4. Calculate Intelligence
-        // Base 1.0 + (Wave * Growth). Capped at 5.0 to prevent bugs.
         result.intelligence = 1f + ((wave - 1) * type.intPerWave);
         if (result.intelligence > 5.0f) result.intelligence = 5.0f;
 

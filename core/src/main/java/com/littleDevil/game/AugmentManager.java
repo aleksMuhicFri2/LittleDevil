@@ -8,7 +8,6 @@ import java.util.List;
 
 public class AugmentManager {
 
-    private final GameWorld world;
     private final Player player;
 
     private final List<Augment> masterAugmentList = new ArrayList<>();
@@ -24,8 +23,8 @@ public class AugmentManager {
     private TextureRegion[] augmentIcons;
     private TextureRegion[] augmentCards;
 
-    public AugmentManager(GameWorld world, Player player) {
-        this.world = world;
+    // constructor
+    public AugmentManager(Player player) {
         this.player = player;
 
         loadAssets();
@@ -33,6 +32,7 @@ public class AugmentManager {
         resetPool();
     }
 
+    // creates a Texture for every augment from the spritesheet
     private void loadAssets() {
         augmentCardSheet = new Texture("GameUI/augmentsSpritesheet.png");
         TextureRegion[][] tmpCards = TextureRegion.split(augmentCardSheet, 48, 64);
@@ -82,6 +82,7 @@ public class AugmentManager {
         for (int i = 0; i < 5; i++) playerSlots[i] = null;
     }
 
+    // chooses an augment from the remaining pool
     public void rollOptions() {
         currentOptions.clear();
         if (currentPool.isEmpty()) return;
@@ -101,14 +102,13 @@ public class AugmentManager {
             playerSlots[slotsFilled++] = aug;
             currentPool.remove(aug);
 
-            System.out.println("Picked: " + aug.name);
-
             // Apply the logic / stats immediately
             activateAugmentOnPlayer(aug);
         }
     }
 
-    //                STAT APPLICATION & FLAG SETTING
+
+    // STAT APPLICATION & FLAG SETTING
     private void activateAugmentOnPlayer(Augment aug) {
         switch (aug.id) {
             // ATTACK
@@ -128,7 +128,6 @@ public class AugmentManager {
                 break;
 
             // DEFENSE
-
             case "VETERAN":
                 player.hasVeteran = true;
                 break;
@@ -150,7 +149,6 @@ public class AugmentManager {
                 break;
 
             // SPEED
-
             case "THE_FLASH":
                 player.hasTheFlash = true;
                 break;
@@ -175,7 +173,6 @@ public class AugmentManager {
                 break;
 
             // LUCK
-
             case "GRAVE_LOOTER":
                 player.hasGraveLooter = true;
                 break;
@@ -185,7 +182,6 @@ public class AugmentManager {
                 break;
 
             // ALL
-
             case "LAST_STAND":
                 player.hasLastStand = true;
                 break;

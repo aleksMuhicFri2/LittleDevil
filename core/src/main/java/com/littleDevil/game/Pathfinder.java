@@ -40,7 +40,7 @@ public class Pathfinder {
         return path;
     }
 
-    // Extracted A* core so we can reuse it
+    // Extracted A* core
     private List<Node> runAStar(int startX, int startY, int goalX, int goalY) {
         Node start = new Node(startX, startY);
         Node goal = new Node(goalX, goalY);
@@ -81,9 +81,7 @@ public class Pathfinder {
         return Collections.emptyList(); // no path found
     }
 
-    // ========================
     // --- HELPER FUNCTIONS ---
-    // ========================
 
     private boolean isInBounds(int x, int y) {
         return y >= 0 && y < currentGrid.length && x >= 0 && x < currentGrid[0].length;
